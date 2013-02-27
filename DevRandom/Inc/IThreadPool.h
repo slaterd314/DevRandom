@@ -3,6 +3,7 @@
 #define __ITHREADPOOL_H__
 
 #include <memory>
+#include <functional>
 
 /// <summary>
 /// IThreadPool is the interface to the thread pool. In addition to managing the thread pool itself.
@@ -27,6 +28,9 @@ public:
 	virtual bool Enabled()=0;
 	virtual void deleteWorkItem(IWork *&pWork)=0;
 	virtual void deleteClientConnectionItem(IClientConnection *&pCn)=0;
+
+public:
+	virtual ::std::shared_ptr<class IWork> newWork(const ::std::function<bool (PTP_CALLBACK_INSTANCE,class IWork *) > &f)=0;
 
 public:
 	/// Close a thread pool work item and release the OS resources.

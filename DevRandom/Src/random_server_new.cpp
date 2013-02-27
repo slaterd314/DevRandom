@@ -2,7 +2,7 @@
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
-#define delete DEBUG_DELETE
+
 #endif
 
 
@@ -70,7 +70,7 @@ static void WaitForCallbacks()
 int RunServer2()
 {
 	IThreadPoolPtr pPool = createThreadPool(IThreadPool::LOW);
-	if( pPool.get() )
+	if( pPool )
 	{
 		IClientConnection *pConn = pPool->newNamedPipeConnection();
 		if( pConn )
