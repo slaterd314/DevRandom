@@ -9,15 +9,16 @@ class GenericWork : public IWork
 {
 	FuncPtr m_func;
 public:
-	GenericWork(){}
+	GenericWork() : m_func([](PTP_CALLBACK_INSTANCE , IWork *){})
+	{
+	}
 	GenericWork(const FuncPtr &func) : m_func(func)
 	{
 	}
 	
-	virtual bool Execute(PTP_CALLBACK_INSTANCE Instance)
+	virtual void Execute(PTP_CALLBACK_INSTANCE Instance)
 	{
 		m_func(Instance,this);
-		return true;
 	}
 	void setWork(const FuncPtr &func)
 	{

@@ -5,6 +5,8 @@
 #include <memory>
 #include <functional>
 #include "IWork.h"
+#include "IWait.h"
+#include "ITimer.h"
 #include "IIoCompletion.h"
 
 /// <summary>
@@ -15,10 +17,10 @@
 class IThreadPool
 {
 public:
-	virtual class IWork *newWaitForNewConnection(class IClientConnection *pCn)=0;
+//	virtual class IWork *newWaitForNewConnection(class IClientConnection *pCn)=0;
 	virtual PTP_CALLBACK_ENVIRON env()=0;
-	virtual class IClientConnection *newNamedPipeConnection()=0;
-	virtual class IWork * newWriteRandomData3(IClientConnection *)=0;
+//	virtual class IClientConnection *newNamedPipeConnection()=0;
+//	virtual class IWork * newWriteRandomData3(IClientConnection *)=0;
 	virtual ~IThreadPool(){}
 	enum Priority {
 		NORMAL,
@@ -28,12 +30,14 @@ public:
 
 	virtual void Shutdown()=0;
 	virtual bool Enabled()=0;
-	virtual void deleteWorkItem(IWork *&pWork)=0;
-	virtual void deleteClientConnectionItem(IClientConnection *&pCn)=0;
+//	virtual void deleteWorkItem(IWork *&pWork)=0;
+//	virtual void deleteClientConnectionItem(IClientConnection *&pCn)=0;
 
 public:
 	virtual IWorkPtr newWork(const IWork::FuncPtr &f)=0;
 	virtual IIoCompletionPtr newIoCompletion(HANDLE hIoObject, const IIoCompletion::FuncPtr &f)=0;
+	virtual IWaitPtr newWait(const IWait::FuncPtr &f)=0;
+	virtual ITimerPtr newTimer(const ITimer::FuncPtr &f)=0;
 
 public:
 	/// Close a thread pool work item and release the OS resources.

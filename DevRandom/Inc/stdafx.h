@@ -24,6 +24,9 @@
 #include <stdlib.h>
 #include <Strsafe.h>
 #include <intrin.h>
+#include <memory>
+#include <functional>
+
 #pragma warning( default : 4995 )
 
 #ifdef _DEBUG

@@ -1,5 +1,7 @@
 #include "stdafx.h"
 
+#ifdef DEPRECATED
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 
@@ -199,3 +201,6 @@ PipeClientConnection::writeData()
 		bRetVal = pool()->SubmitThreadpoolWork(m_pWork);
 	return bRetVal;
 }
+
+
+#endif // #ifdef DEPRECATED

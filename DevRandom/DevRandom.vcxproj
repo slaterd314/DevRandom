@@ -173,16 +173,21 @@
   <ItemGroup>
     <ClInclude Include="Inc\GenericClientConnection.h" />
     <ClInclude Include="Inc\GenericIoCompletion.h" />
+    <ClInclude Include="Inc\GenericTimer.h" />
+    <ClInclude Include="Inc\GenericWait.h" />
     <ClInclude Include="Inc\GenericWork.h" />
     <ClInclude Include="Inc\IClientConnection.h" />
     <ClInclude Include="Inc\IGenericClientConnection.h" />
     <ClInclude Include="Inc\IIoCompletion.h" />
     <ClInclude Include="Inc\IThreadPool.h" />
     <ClInclude Include="Inc\IThreadPoolItem.h" />
+    <ClInclude Include="Inc\ITimer.h" />
+    <ClInclude Include="Inc\IWait.h" />
     <ClInclude Include="Inc\IWork.h" />
     <ClInclude Include="Inc\PipeClientConnection.h" />
     <ClInclude Include="Inc\RandomDataPipeServer.h" />
     <ClInclude Include="Inc\ServiceManager.h" />
+    <ClInclude Include="Inc\SpinLock.h" />
     <ClInclude Include="Inc\stdafx.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>

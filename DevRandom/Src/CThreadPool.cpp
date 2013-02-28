@@ -12,11 +12,15 @@
 
 #include "IThreadPool.h"
 #include "IWork.h"
+#include "IWait.h"
 // #include "IIoCompletion.h"
 #include "IClientConnection.h"
 #include "PipeClientConnection.h"
 #include "GenericWork.h"
+#include "GenericWait.h"
+#include "GenericTimer.h"
 #include "GenericIoCompletion.h"
+#include "SpinLock.h"
 
 
 template <class C>
@@ -121,6 +125,40 @@ public:
 };
 
 
+template <class C>
+class IWaitImpl : public C
+{
+	PTP_WAIT m_ptpWait;
+public:
+	IWaitImpl()
+	{
+		//TRACE(TEXT(">>>IWorkImpl::IWorkImpl<%S>(), this=0x%x.\n"), typeid(C).name() , this); 
+	}
+	~IWaitImpl()
+	{
+		// TRACE(TEXT("IWorkImpl::~IWorkImpl<%S>(), this=0x%x.\n"), typeid(C).name() , this); 
+	}
+	virtual PTP_WAIT handle() { return m_ptpWait; }
+	virtual void setPtp(PTP_WAIT w) { m_ptpWait = w; }
+};
+
+template <class C>
+class ITimerImpl : public C
+{
+	PTP_TIMER m_ptpTimer;
+public:
+	ITimerImpl()
+	{
+		//TRACE(TEXT(">>>IWorkImpl::IWorkImpl<%S>(), this=0x%x.\n"), typeid(C).name() , this); 
+	}
+	~ITimerImpl()
+	{
+		// TRACE(TEXT("IWorkImpl::~IWorkImpl<%S>(), this=0x%x.\n"), typeid(C).name() , this); 
+	}
+	virtual PTP_TIMER handle() { return m_ptpTimer; }
+	virtual void setPtp(PTP_TIMER t) { m_ptpTimer = t; }
+};
+
 class IClientConnectionPrivate
 {
 public:
@@ -156,6 +194,8 @@ public:
 		}
 	}
 };
+
+#ifdef DEPRECATED
 
 class ListenForNewConnection : public IWork
 {
@@ -236,20 +276,28 @@ public:
 		return bRetVal;
 	}
 };
+#endif // DEPRECATED
+
 
 class CThreadPool : public IThreadPool
 {
 	TP_CALLBACK_ENVIRON m_env;
 	unsigned __int32	m_bEnabled;
 	::std::hash_set<IThreadPoolItem *> m_items;
+	SpinLock		m_lock;
 public:
 	void insertItem(IThreadPoolItem *pItem)
 	{
-		//m_items.insert(pItem);
+		// protect access to the hash table
+		m_lock.acquire();
+		m_items.insert(pItem);
+		m_lock.release();
 	}
 	void removeItem(IThreadPoolItem *pItem)
 	{
-		//m_items.erase(pItem);
+		m_lock.acquire();
+		m_items.erase(pItem);
+		m_lock.release();
 	}
 private:
 	DWORD GetThreadPoolSize()
@@ -340,6 +388,14 @@ private:
 		return bRetVal;
 	}
 
+	bool SetThreadpoolWait(class IWait *wait, HANDLE h, PFILETIME pftTimeout)
+	{
+		bool bRetVal = (NULL != wait) && Enabled();
+		if( bRetVal )
+			::SetThreadpoolWait(wait->handle(),h,pftTimeout);
+		return bRetVal;
+	}
+
 	bool SubmitThreadpoolWork(class IWork *work)
 	{
 		bool bRetVal = (NULL != work) && Enabled();
@@ -414,7 +470,9 @@ private:
 	}
 
 public:
-	CThreadPool(const IThreadPool::Priority priority=IThreadPool::NORMAL, DWORD dwMinThreads=0, DWORD dwMaxThreads=0) : m_bEnabled(FALSE)
+	CThreadPool(const IThreadPool::Priority priority=IThreadPool::NORMAL, DWORD dwMinThreads=0, DWORD dwMaxThreads=0) :
+	 m_bEnabled(FALSE),
+	m_lock(false)
 	{
 		PTP_POOL pool =  CreateThreadpool(NULL);
 		// PTP_IO pio = CreateThreadpoolIo(
@@ -483,6 +541,7 @@ public:
 		}
 	}
 	virtual PTP_CALLBACK_ENVIRON env() { return &m_env; }
+#ifdef DEPRECATED
 	virtual IClientConnection *newNamedPipeConnection()
 	{
 		IClientConnection *pRetVal = NULL;
@@ -519,8 +578,8 @@ public:
 		}
 		return pData;
 	}
-
-	virtual ::std::shared_ptr<IWork> newWork(const ::std::function<bool (PTP_CALLBACK_INSTANCE,IWork *) > &f)
+#endif // DEPRECATED
+	virtual IWorkPtr newWork(const IWork::FuncPtr &f)
 	{
 		::std::shared_ptr<IWorkImpl<IThreadPoolItemImpl<GenericWork> > >  ptr = ::std::make_shared<IWorkImpl<IThreadPoolItemImpl<GenericWork> > >();
 		if( ptr )
@@ -530,6 +589,30 @@ public:
 			createThreadPoolWork(ptr.get());
 		}
 		return ::std::static_pointer_cast<IWork>(ptr);
+	}
+
+	virtual IWaitPtr newWait(const IWait::FuncPtr &f)
+	{
+		::std::shared_ptr<IWaitImpl<IThreadPoolItemImpl<GenericWait> > >  ptr = ::std::make_shared<IWaitImpl<IThreadPoolItemImpl<GenericWait> > >();
+		if( ptr )
+		{
+			ptr->setPool(this);
+			ptr->setWait(f);
+			createThreadPoolWait(ptr.get());
+		}
+		return ::std::static_pointer_cast<IWait>(ptr);
+	}
+
+	virtual ITimerPtr newTimer(const ITimer::FuncPtr &f)
+	{
+		::std::shared_ptr<ITimerImpl<IThreadPoolItemImpl<GenericTimer> > >  ptr = ::std::make_shared<ITimerImpl<IThreadPoolItemImpl<GenericTimer> > >();
+		if( ptr )
+		{
+			ptr->setPool(this);
+			ptr->setTimer(f);
+			createThreadPoolTimer(ptr.get());
+		}
+		return ::std::static_pointer_cast<ITimer>(ptr);
 	}
 
 
@@ -561,6 +644,36 @@ public:
 	}
 
 	template <class C>
+	void createThreadPoolWait(IWaitImpl<C> *pWait)
+	{
+		if( pWait && Enabled())
+		{
+			PTP_WAIT ptpWait = ::CreateThreadpoolWait(IWait_callback, reinterpret_cast<PVOID>(pWait), env());
+		
+			if( NULL == ptpWait )
+			{
+				_ftprintf_s(stderr,TEXT("CreateThreadpoolWait failed, GLE=%d.\n"), GetLastError()); 
+			}
+			pWait->setPtp(ptpWait);
+		}
+	}
+
+	template <class C>
+	void createThreadPoolTimer(ITimerImpl<C> *pTimer)
+	{
+		if( pTimer && Enabled())
+		{
+			PTP_TIMER ptpTimer = ::CreateThreadpoolTimer(ITimer_callback, reinterpret_cast<PVOID>(pTimer), env());
+		
+			if( NULL == ptpTimer )
+			{
+				_ftprintf_s(stderr,TEXT("CreateThreadpoolTimer failed, GLE=%d.\n"), GetLastError()); 
+			}
+			pTimer->setPtp(ptpTimer);
+		}
+	}
+
+	template <class C>
 	void createThreadPoolIoCompletion(HANDLE hIo, IIoCompletionImpl<C> *pIoCompletion)
 	{
 		if( pIoCompletion && Enabled() )
@@ -574,14 +687,35 @@ public:
 	static VOID CALLBACK IWork_callback(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK /*Work*/)
 	{
 		IWork *pWork = reinterpret_cast<IWork *>(Context);
-		bool bSuccess = FALSE;
 		if( pWork )
 		{
 			if( pWork->pool()->Enabled() )
-				bSuccess = pWork->Execute(Instance);
+				pWork->Execute(Instance);
 		}
+#ifdef DEPRECATED
 		if(  !bSuccess && pWork )
 			pWork->pool()->deleteWorkItem(pWork);
+#endif // DEPRECATED
+	}
+
+	static VOID CALLBACK IWait_callback(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT /*Wait*/, TP_WAIT_RESULT WaitResult)
+	{
+		IWait *pWait = reinterpret_cast<IWait *>(Context);
+		if( pWait )
+		{
+			if( pWait->pool()->Enabled() )
+				pWait->Execute(Instance,WaitResult);
+		}
+	}
+
+	static VOID CALLBACK ITimer_callback(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER /*Wait*/)
+	{
+		ITimer *pTimer = reinterpret_cast<ITimer *>(Context);
+		if( pTimer )
+		{
+			if( pTimer->pool()->Enabled() )
+				pTimer->Execute(Instance);
+		}
 	}
 
 	static VOID CALLBACK IClientConnection_callback(__inout      PTP_CALLBACK_INSTANCE Instance,
@@ -594,15 +728,14 @@ public:
 		if( 0 != Context )
 		{
 			IClientConnection *pConn = reinterpret_cast<IClientConnection *>(Context);
-			BOOL bRetVal = FALSE;
 			if( pConn->pool()->Enabled() )
-			{
-				bRetVal = pConn->OnComplete(Instance, Overlapped, IoResult, NumberOfBytesTransferred, Io );
-			}
+				pConn->OnComplete(Instance, Overlapped, IoResult, NumberOfBytesTransferred, Io );
+#ifdef DEPRECATED
 			if( !bRetVal )
 			{
 				pConn->pool()->deleteClientConnectionItem(pConn);
 			}
+#endif // DEPRECATED
 		}
 	}
 
@@ -616,15 +749,8 @@ public:
 		if( 0 != Context )
 		{
 			IIoCompletion *pIo = reinterpret_cast<IIoCompletion *>(Context);
-			BOOL bRetVal = FALSE;
 			if( pIo->pool()->Enabled() )
-			{
-				bRetVal = pIo->OnComplete(Instance, Overlapped, IoResult, NumberOfBytesTransferred );
-			}
-			//if( !bRetVal )
-			//{
-			//	pIo->pool()->deleteClientConnectionItem(pIo);
-			//}
+				pIo->OnComplete(Instance, Overlapped, IoResult, NumberOfBytesTransferred );
 		}
 	}
 

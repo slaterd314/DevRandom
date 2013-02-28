@@ -9,14 +9,16 @@ class GenericIoCompletion : public IIoCompletion
 {
 	FuncPtr m_func;
 public:
-	GenericIoCompletion(){}
+	GenericIoCompletion() : m_func([](PTP_CALLBACK_INSTANCE , PVOID, ULONG, ULONG_PTR, IIoCompletion *){})
+	{
+	}
 	GenericIoCompletion(const FuncPtr &func) : m_func(func)
 	{
 	}
 	
-	virtual bool OnComplete(PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered)
+	virtual void OnComplete(PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered)
 	{
-		return m_func(Instance,Overlapped,IoResult,nBytesTransfered,this);
+		m_func(Instance,Overlapped,IoResult,nBytesTransfered,this);
 	}
 	void setIoComplete(const FuncPtr &func)
 	{

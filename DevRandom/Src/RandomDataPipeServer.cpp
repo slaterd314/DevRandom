@@ -22,12 +22,12 @@ struct MyOverlapped : public OVERLAPPED
 };
 	
 
-auto noio = [=](PTP_CALLBACK_INSTANCE , PVOID, ULONG, ULONG_PTR, IIoCompletion * /* pIo */ )->bool {return true;};
+auto noio = [=](PTP_CALLBACK_INSTANCE , PVOID, ULONG, ULONG_PTR, IIoCompletion * /* pIo */ ) {};
 
 IWorkPtr makePipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool)
 {
 	//IWorkPtr pWrk;
-	auto connect = [=](PTP_CALLBACK_INSTANCE , IWork *pWork)->bool {
+	auto connect = [=](PTP_CALLBACK_INSTANCE , IWork *pWork) {
 		if( pWork )
 		{
 			IWorkPtr pItem(::std::dynamic_pointer_cast<IWork>(pWork->shared_from_this()));
@@ -51,107 +51,87 @@ IWorkPtr makePipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool)
 			// initialize it with a donothing function. 
 			IIoCompletionPtr pio = pPool->newIoCompletion(hPipe, noio);
 
-			auto beginIo = [=](PTP_CALLBACK_INSTANCE , PVOID, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo)->bool {
+			auto beginIo = [=](PTP_CALLBACK_INSTANCE , PVOID, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo) {
 				IWorkPtr pServerItem(pItem);
-				if( pIo )
+				if( pIo && (NO_ERROR == IoResult) )
 				{
-					if( NO_ERROR == IoResult )
-					{
+					IIoCompletionPtr pio2 = pio;
+					HANDLE h = hPipe;
 
-						IIoCompletionPtr pio2 = pio;
-						HANDLE h = hPipe;
+					::std::shared_ptr<MyOverlapped> olp2(olp);
 
-						::std::shared_ptr<MyOverlapped> olp2(olp);
-
-						olp->buffer = olp->buffer1;
-						RtlGenRandom(olp->buffer, MyOverlapped::BUFSIZE);
+					olp->buffer = olp->buffer1;
+					RtlGenRandom(olp->buffer, MyOverlapped::BUFSIZE);
 			
-						auto write = [=](PTP_CALLBACK_INSTANCE , IWork * /*pWork*/)->bool {
-							bool bRetVal = false;
+					auto write = [=](PTP_CALLBACK_INSTANCE , IWork * /*pWork*/) {
 
-							DWORD cbReplyBytes = MyOverlapped::BUFSIZE;
-							DWORD cbWritten = 0;
+						DWORD cbReplyBytes = MyOverlapped::BUFSIZE;
+						DWORD cbWritten = 0;
 
-							unsigned __int8 *pWritePtr = olp2->buffer;
-							if( olp2->buffer == olp2->buffer1 )
-								olp2->buffer = olp2->buffer2;
-							else
-								olp2->buffer = olp2->buffer1;
-							unsigned __int8 *pGeneratePtr = olp2->buffer;
+						unsigned __int8 *pWritePtr = olp2->buffer;
+						if( olp2->buffer == olp2->buffer1 )
+							olp2->buffer = olp2->buffer2;
+						else
+							olp2->buffer = olp2->buffer1;
+						unsigned __int8 *pGeneratePtr = olp2->buffer;
 
-							if( pio2.get() )
-								pio2->pool()->StartThreadpoolIo(pio2.get());
-							// Write the reply to the pipe. 
-							BOOL fSuccess = WriteFile( 
-										h,        // handle to pipe 
-										pWritePtr,     // buffer to write from 
-										cbReplyBytes, // number of bytes to write 
-										&cbWritten,   // number of bytes written 
-										olp2.get());        // overlapped I/O 
+						if( pio2.get() )
+							pio2->pool()->StartThreadpoolIo(pio2.get());
+						// Write the reply to the pipe. 
+						BOOL fSuccess = WriteFile( 
+									h,        // handle to pipe 
+									pWritePtr,     // buffer to write from 
+									cbReplyBytes, // number of bytes to write 
+									&cbWritten,   // number of bytes written 
+									olp2.get());        // overlapped I/O 
 
-							if(!fSuccess)
+						if(!fSuccess)
+						{
+							if( ERROR_IO_PENDING == GetLastError() )
+								fSuccess = TRUE;
+						}
+						if (!fSuccess /*|| cbReplyBytes != cbWritten*/ )
+						{   
+							_ftprintf_s(stderr,TEXT("makePipeServer::write failed, GLE=%d.\n"), GetLastError());
+						}
+						else if( FALSE == RtlGenRandom(pGeneratePtr, MyOverlapped::BUFSIZE) )
+						{
+							pio2->pool()->CancelThreadpoolIo(pio2.get());
+							const_cast<IIoCompletionPtr &>(pio2).reset();	// release our hold on the IoCompletion object
+						}
+					};
+
+					IWorkPtr pItem2 = pIo->pool()->newWork(write);
+						
+					if( pItem2.get() )
+					{
+						//IIoCompletionPtr pio3 = pio;
+						auto kickWrite = [=](PTP_CALLBACK_INSTANCE , PVOID, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo) {
+							if( NO_ERROR == IoResult )
 							{
-								if( ERROR_IO_PENDING == GetLastError() )
-									fSuccess = TRUE;
-							}
-							if (!fSuccess /*|| cbReplyBytes != cbWritten*/ )
-							{   
-								_ftprintf_s(stderr,TEXT("WriteRandomData3::WriteFile() failed, GLE=%d.\n"), GetLastError());
-								//pool()->deleteClientConnectionItem(pConn);
+								if( pItem2.get() )
+								{
+									pIo->pool()->SubmitThreadpoolWork(pItem2.get());
+								}
 							}
 							else
-								bRetVal = true;
-		
-							if( bRetVal )
-							{
-								bRetVal = (FALSE != RtlGenRandom(pGeneratePtr, MyOverlapped::BUFSIZE));
-							}
-							else
-							{
-								pio2->pool()->CancelThreadpoolIo(pio2.get());
-								const_cast<IIoCompletionPtr &>(pio2).reset();	// release our hold on the IoCompletion object
-							}
-							return bRetVal;
-
+								const_cast<IWorkPtr &>(pItem2).reset();	// release our hold on the work item
 						};
 
+						pio->setIoComplete(kickWrite);
+						pItem2->pool()->SubmitThreadpoolWork(pItem2.get());
+						// start a new listening session
+						pServerItem->pool()->SubmitThreadpoolWork(pServerItem.get());
 
-						IWorkPtr pItem2 = pIo->pool()->newWork(write);
-						
-						if( pItem2.get() )
-						{
-							//IIoCompletionPtr pio3 = pio;
-							auto kickWrite = [=](PTP_CALLBACK_INSTANCE , PVOID, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo)->bool {
-								if( NO_ERROR == IoResult )
-								{
-									if( pItem2.get() )
-									{
-										pIo->pool()->SubmitThreadpoolWork(pItem2.get());
-									}
-								}
-								else
-									const_cast<IWorkPtr &>(pItem2).reset();	// release our hold on the work item
-								return true;
-							};
-
-
-
-							pio->setIoComplete(kickWrite);
-							pItem2->pool()->SubmitThreadpoolWork(pItem2.get());
-							// start a new listening session
-							pServerItem->pool()->SubmitThreadpoolWork(pServerItem.get());
-
-						}
-						else
-						{
-							// release our hold on these pointers 
-							// we're exiting
-							const_cast<IWorkPtr &>(pItem).reset();
-							const_cast<IIoCompletionPtr &>(pio).reset();
-						}
+					}
+					else
+					{
+						// release our hold on these pointers 
+						// we're exiting
+						const_cast<IWorkPtr &>(pItem).reset();
+						const_cast<IIoCompletionPtr &>(pio).reset();
 					}
 				}
-				return true;
 			};
 
 
@@ -167,16 +147,11 @@ IWorkPtr makePipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool)
 				if( GetLastError() == ERROR_IO_PENDING || GetLastError() == ERROR_PIPE_CONNECTED )
 					fConnected = TRUE;
 			}
-			if( fConnected )
-			{
-				// m_state = LISTENING;
-			}
-			else
+			if( !fConnected )
 			{
 				pPool->CancelThreadpoolIo(pio.get());	// prevent a memory leak if ConnectNamedPipe() fails.
 			}
 		}
-		return true;
 	};
 
 	return pPool->newWork(connect);

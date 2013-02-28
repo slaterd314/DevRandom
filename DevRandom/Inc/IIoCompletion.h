@@ -12,8 +12,8 @@ IIoCompletion : virtual public IThreadPoolItem
 {
 public:
 	virtual ~IIoCompletion() {}
-	typedef ::std::function<bool (PTP_CALLBACK_INSTANCE , PVOID, ULONG, ULONG_PTR, IIoCompletion *)> FuncPtr;
-	virtual bool OnComplete(PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered)=0;
+	typedef ::std::function<void (PTP_CALLBACK_INSTANCE , PVOID, ULONG, ULONG_PTR, IIoCompletion *)> FuncPtr;
+	virtual void OnComplete(PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered)=0;
 	virtual PTP_IO pio()=0;
 	virtual void setIoComplete(const FuncPtr &f)=0;
 	static VOID CALLBACK callback(	__inout      PTP_CALLBACK_INSTANCE Instance,

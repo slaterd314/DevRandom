@@ -2,6 +2,8 @@
 #ifndef __PIPECLIENTCONNECTION_H__
 #define __PIPECLIENTCONNECTION_H__
 
+#ifdef DEPRECATED
+
 #include "IClientConnection.h"
 #include "IWork.h"
 
@@ -34,5 +36,7 @@ private:
 	states m_state;
 	class IWork *m_pWork;
 };
+
+#endif // DEPRECATED
 
 #endif // __PIPECLIENTCONNECTION_H__

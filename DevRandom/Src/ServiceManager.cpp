@@ -8,7 +8,7 @@
 
 #include "ServiceManager.h"
 #include "IWork.h"
-
+#include "RandomDataPipeServer.h"
 
 
 #ifdef ENABLE_SERVICE
@@ -131,6 +131,13 @@ VOID
 ServiceManager::SvcInit( DWORD, LPTSTR * )
 {
 	pPool = createThreadPool(IThreadPool::LOW);
+	IWorkPtr pWork = makePipeServer(TEXT("\\\\.\\pipe\\random"), pPool.get());
+	if( pWork )
+	{
+		pPool->SubmitThreadpoolWork(pWork.get());
+	}
+
+#ifdef DEPRECATED
 	if( pPool )
 	{
 		IClientConnection *pConn = pPool->newNamedPipeConnection();
@@ -144,6 +151,7 @@ ServiceManager::SvcInit( DWORD, LPTSTR * )
 			}
 		}		
 	}	
+#endif // DEPRECATED
 }
 
 //
