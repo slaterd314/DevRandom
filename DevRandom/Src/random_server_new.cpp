@@ -70,7 +70,7 @@ static void WaitForCallbacks()
 
 int RunServer2()
 {
-	IThreadPoolPtr pPool = createThreadPool(IThreadPool::LOW);
+	IThreadPoolPtr pPool = IThreadPool::newPool(IThreadPool::LOW);
 	if( pPool )
 	{
 		IWorkPtr pWork = makePipeServer(TEXT("\\\\.\\pipe\\random"), pPool.get());

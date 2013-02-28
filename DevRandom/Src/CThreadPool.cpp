@@ -404,46 +404,11 @@ private:
 		return bRetVal;
 	}
 
-	virtual bool StartThreadpoolIo(class IClientConnection *pCn)
-	{
-		bool bRetVal = (NULL != pCn) && Enabled() && (NULL != pCn->pio());
-		if( bRetVal )
-			::StartThreadpoolIo(pCn->pio());
-		return bRetVal;
-	}
-
 	virtual bool StartThreadpoolIo(class IIoCompletion *pIo)
 	{
 		bool bRetVal = (NULL != pIo) && Enabled() && (NULL != pIo->pio());
 		if( bRetVal )
 			::StartThreadpoolIo(pIo->pio());
-		return bRetVal;
-	}
-
-	virtual bool CreateThreadpoolIo(class IClientConnection *pCn)
-	{
-		bool bRetVal = false;
-		if( pCn && Enabled())
-		{
-			IClientConnectionPrivate *ptr = dynamic_cast<IClientConnectionPrivate *>(pCn);
-			if( ptr )
-			{
-				PTP_IO pio = ::CreateThreadpoolIo(pCn->handle(), IClientConnection_callback, (PVOID)pCn, env());
-				if( NULL != pio )
-				{
-					ptr->setPio(pio);
-					bRetVal = true;
-				}
-			}
-		}
-		return bRetVal;
-	}
-
-	virtual bool CancelThreadpoolIo(class IClientConnection *pCn)
-	{
-		bool bRetVal = (pCn && Enabled());
-		if( bRetVal )
-			::CancelThreadpoolIo(pCn->pio());
 		return bRetVal;
 	}
 
@@ -783,7 +748,7 @@ IThreadPoolItemImpl<C>::setPool(IThreadPool *p)
 }
 
 ::std::shared_ptr<IThreadPool>
-createThreadPool(const IThreadPool::Priority priority, const DWORD dwMinThreads, const DWORD dwMaxThreads)
+IThreadPool::newPool(const IThreadPool::Priority priority, const DWORD dwMinThreads, const DWORD dwMaxThreads)
 {
 	return ::std::static_pointer_cast<IThreadPool>(::std::make_shared<CThreadPool>(priority, dwMinThreads, dwMaxThreads));
 }

@@ -108,7 +108,7 @@ ServiceManager::SvcMain( DWORD dwArgc, LPTSTR *lpszArgv )
   
     if( !gSvcStatusHandle )
     { 
-        SvcReportEvent(TEXT("RegisterServiceCtrlHandler")); 
+        SvcReportEvent(TEXT("RegisterServiceCtrlHandlerEx")); 
         return; 
     } 
   
@@ -130,7 +130,7 @@ ServiceManager::SvcMain( DWORD dwArgc, LPTSTR *lpszArgv )
 VOID
 ServiceManager::SvcInit( DWORD, LPTSTR * )
 {
-	pPool = createThreadPool(IThreadPool::LOW);
+	pPool = IThreadPool::newPool(IThreadPool::LOW);
 	IWorkPtr pWork = makePipeServer(TEXT("\\\\.\\pipe\\random"), pPool.get());
 	if( pWork )
 	{
