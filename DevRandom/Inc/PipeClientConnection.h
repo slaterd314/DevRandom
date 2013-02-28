@@ -3,7 +3,7 @@
 #define __PIPECLIENTCONNECTION_H__
 
 #include "IClientConnection.h"
-
+#include "IWork.h"
 
 class PipeClientConnection : public IClientConnection // , public IIoCompletion
 {
@@ -25,6 +25,7 @@ public:
 	virtual bool OnComplete(PTP_CALLBACK_INSTANCE /*Instance*/, PVOID /*Overlapped*/, ULONG IoResult, ULONG_PTR /*nBytesTransfered*/, PTP_IO /*pio*/);
 	virtual bool beginIo();
 	virtual bool writeData();
+	IWorkPtr createPipePacket();
 private:
 	static LPCTSTR lpszPipename;
 	BYTE   m_buffer[BUFSIZE];

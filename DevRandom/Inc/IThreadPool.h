@@ -4,6 +4,8 @@
 
 #include <memory>
 #include <functional>
+#include "IWork.h"
+#include "IIoCompletion.h"
 
 /// <summary>
 /// IThreadPool is the interface to the thread pool. In addition to managing the thread pool itself.
@@ -30,7 +32,8 @@ public:
 	virtual void deleteClientConnectionItem(IClientConnection *&pCn)=0;
 
 public:
-	virtual ::std::shared_ptr<class IWork> newWork(const ::std::function<bool (PTP_CALLBACK_INSTANCE,class IWork *) > &f)=0;
+	virtual IWorkPtr newWork(const IWork::FuncPtr &f)=0;
+	virtual IIoCompletionPtr newIoCompletion(HANDLE hIoObject, const IIoCompletion::FuncPtr &f)=0;
 
 public:
 	/// Close a thread pool work item and release the OS resources.
@@ -39,6 +42,9 @@ public:
 	virtual bool StartThreadpoolIo(class IClientConnection *pCn)=0;
 	virtual bool CreateThreadpoolIo(class IClientConnection *pCn)=0;
 	virtual bool CancelThreadpoolIo(class IClientConnection *pCn)=0;
+	virtual bool StartThreadpoolIo(class IIoCompletion *pCn)=0;
+	virtual bool CancelThreadpoolIo(class IIoCompletion *pCn)=0;
+	virtual bool CloseThreadpoolIo(class IIoCompletion *pCn)=0;
 	virtual void WaitForThreadpoolIoCallbacks(class IClientConnection *pCn, BOOL bCancelPending)=0;
 
 };

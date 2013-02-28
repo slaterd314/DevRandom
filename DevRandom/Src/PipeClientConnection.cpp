@@ -50,6 +50,48 @@ PipeClientConnection::overlapped()
 {
 	return &olp; 
 }
+
+IWorkPtr
+PipeClientConnection::createPipePacket()
+{
+	auto onComplete = [&]() {
+
+	};
+
+	auto f = [&](PTP_CALLBACK_INSTANCE , IWork *pWork)->bool {
+		HANDLE hPipe = CreateNamedPipe(lpszPipename,
+						PIPE_ACCESS_OUTBOUND|FILE_FLAG_OVERLAPPED,
+						PIPE_TYPE_MESSAGE|PIPE_WAIT,
+						PIPE_UNLIMITED_INSTANCES,
+						BUFSIZE,
+						BUFSIZE,
+						0,
+						NULL);
+		if( INVALID_HANDLE_VALUE == hPipe )
+		{
+			_ftprintf_s(stderr,TEXT("CreateNamedPipe failed, GLE=%d.\n"), GetLastError()); 
+		}
+		
+		BOOL fConnected = ConnectNamedPipe(handle(), overlapped());	// asynchronous ConnectNamedPipe() call - this call will return immediately
+															// and the Io completion routine will be called when a client connects.
+		if( !fConnected )
+		{
+			if( GetLastError() == ERROR_IO_PENDING || GetLastError() == ERROR_PIPE_CONNECTED )
+				fConnected = TRUE;
+		}
+		if( fConnected )
+		{
+			m_state = LISTENING;
+		}
+		else
+		{
+			pool()->CancelThreadpoolIo(this);	// prevent a memory leak if ConnectNamedPipe() fails.
+		}
+		return true;
+	};
+	return pool()->newWork(f);
+}
+
 /* virtual */
 bool
 PipeClientConnection::ListenForNewConnection()

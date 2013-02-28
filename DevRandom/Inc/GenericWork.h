@@ -2,22 +2,28 @@
 #ifndef __GENERICWORK_H__
 #define __GENERICWORK_H__
 
+#include "IWork.h"
 #include <functional>
 
 class GenericWork : public IWork
 {
-	::std::function<bool (PTP_CALLBACK_INSTANCE , IWork *)> m_func;
+	FuncPtr m_func;
 public:
 	GenericWork(){}
-	GenericWork(const ::std::function<bool (PTP_CALLBACK_INSTANCE , IWork *)> &func) : m_func(func)
+	GenericWork(const FuncPtr &func) : m_func(func)
 	{
 	}
 	
 	virtual bool Execute(PTP_CALLBACK_INSTANCE Instance)
 	{
-		return m_func(Instance,this);
+		m_func(Instance,this);
+		return true;
 	}
-	void setFunc(const ::std::function<bool (PTP_CALLBACK_INSTANCE , IWork *)> &func)
+	void setWork(const FuncPtr &func)
+	{
+		doSetWork(func);
+	}
+	void doSetWork(const FuncPtr &func)
 	{
 		m_func = func;
 	}

@@ -160,6 +160,7 @@
     <ClCompile Include="Src\CThreadPool.cpp" />
     <ClCompile Include="Src\GenericClientConnection.cpp" />
     <ClCompile Include="Src\PipeClientConnection.cpp" />
+    <ClCompile Include="Src\RandomDataPipeServer.cpp" />
     <ClCompile Include="Src\random_server_new.cpp" />
     <ClCompile Include="Src\ServiceManager.cpp" />
     <ClCompile Include="Src\stdafx.cpp">
@@ -171,6 +172,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Inc\GenericClientConnection.h" />
+    <ClInclude Include="Inc\GenericIoCompletion.h" />
     <ClInclude Include="Inc\GenericWork.h" />
     <ClInclude Include="Inc\IClientConnection.h" />
     <ClInclude Include="Inc\IGenericClientConnection.h" />
@@ -179,6 +181,7 @@
     <ClInclude Include="Inc\IThreadPoolItem.h" />
     <ClInclude Include="Inc\IWork.h" />
     <ClInclude Include="Inc\PipeClientConnection.h" />
+    <ClInclude Include="Inc\RandomDataPipeServer.h" />
     <ClInclude Include="Inc\ServiceManager.h" />
     <ClInclude Include="Inc\stdafx.h" />
     <ClInclude Include="resource.h" />

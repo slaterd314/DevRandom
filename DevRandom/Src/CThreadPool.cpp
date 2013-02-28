@@ -1,5 +1,7 @@
 #include "stdafx.h"
 
+//#include "RandomDataPipeServer.h"
+
 #include <hash_set>
 #include <algorithm>
 
@@ -14,6 +16,7 @@
 #include "IClientConnection.h"
 #include "PipeClientConnection.h"
 #include "GenericWork.h"
+#include "GenericIoCompletion.h"
 
 
 template <class C>
@@ -33,17 +36,35 @@ protected:
 	virtual void setPool(IThreadPool *p);
 };
 
-/*
+
 
 template <class C>
 class IIoCompletionImpl : public C
 {
+	PTP_IO m_pio;
 public:
+	virtual PTP_IO pio()
+	{
+		return m_pio;
+	}
 	IIoCompletionImpl()
 	{
 	}
+	virtual void setPio(PTP_IO p)
+	{
+		m_pio = p;
+	}
+	void setIoComplete(const IIoCompletion::FuncPtr &f)
+	{
+		__if_exists(C::DoSetIoComplete) {
+			C::DoSetIoComplete(f);
+		}
+		__if_not_exists(C::DoSetIoComplete) {
+		UNREFERENCED_PARAMETER(f);
+		}
+	}
 };
-*/
+
 
 /* 
 
@@ -80,11 +101,20 @@ class IWorkImpl : public C, public IWorkImplPrivate
 public:
 	IWorkImpl()
 	{
-		TRACE(TEXT(">>>IWorkImpl::IWorkImpl<%S>(), this=0x%x.\n"), typeid(C).name() , this); 
+		//TRACE(TEXT(">>>IWorkImpl::IWorkImpl<%S>(), this=0x%x.\n"), typeid(C).name() , this); 
 	}
 	~IWorkImpl()
 	{
-		TRACE(TEXT("IWorkImpl::~IWorkImpl<%S>(), this=0x%x.\n"), typeid(C).name() , this); 
+		// TRACE(TEXT("IWorkImpl::~IWorkImpl<%S>(), this=0x%x.\n"), typeid(C).name() , this); 
+	}
+	virtual void setWork(const IWork::FuncPtr &f)
+	{
+		__if_exists(C::doSetWork) {
+			C::doSetWork(f);
+		}
+		__if_not_exists(C::doSetWork) {
+			UNREFERENCED_PARAMETER(f);
+		}
 	}
 	virtual PTP_WORK handle() { return m_ptpWork; }
 	virtual void setPtp(PTP_WORK w) { m_ptpWork = w; }
@@ -215,11 +245,11 @@ class CThreadPool : public IThreadPool
 public:
 	void insertItem(IThreadPoolItem *pItem)
 	{
-		m_items.insert(pItem);
+		//m_items.insert(pItem);
 	}
 	void removeItem(IThreadPoolItem *pItem)
 	{
-		m_items.erase(pItem);
+		//m_items.erase(pItem);
 	}
 private:
 	DWORD GetThreadPoolSize()
@@ -326,6 +356,14 @@ private:
 		return bRetVal;
 	}
 
+	virtual bool StartThreadpoolIo(class IIoCompletion *pIo)
+	{
+		bool bRetVal = (NULL != pIo) && Enabled() && (NULL != pIo->pio());
+		if( bRetVal )
+			::StartThreadpoolIo(pIo->pio());
+		return bRetVal;
+	}
+
 	virtual bool CreateThreadpoolIo(class IClientConnection *pCn)
 	{
 		bool bRetVal = false;
@@ -344,11 +382,28 @@ private:
 		}
 		return bRetVal;
 	}
+
 	virtual bool CancelThreadpoolIo(class IClientConnection *pCn)
 	{
 		bool bRetVal = (pCn && Enabled());
 		if( bRetVal )
 			::CancelThreadpoolIo(pCn->pio());
+		return bRetVal;
+	}
+
+	virtual bool CancelThreadpoolIo(class IIoCompletion *pIo)
+	{
+		bool bRetVal = (pIo && Enabled());
+		if( bRetVal )
+			::CancelThreadpoolIo(pIo->pio());
+		return bRetVal;
+	}
+
+	virtual bool CloseThreadpoolIo(class IIoCompletion *pIo)
+	{
+		bool bRetVal = (pIo && Enabled());
+		if( bRetVal )
+			::CloseThreadpoolIo(pIo->pio());
 		return bRetVal;
 	}
 
@@ -471,9 +526,23 @@ public:
 		if( ptr )
 		{
 			ptr->setPool(this);
-			ptr->setFunc(f);
+			ptr->setWork(f);
+			createThreadPoolWork(ptr.get());
 		}
 		return ::std::static_pointer_cast<IWork>(ptr);
+	}
+
+
+	virtual IIoCompletionPtr newIoCompletion(HANDLE hIoObject, const IIoCompletion::FuncPtr &f)
+	{
+		::std::shared_ptr<IIoCompletionImpl<IThreadPoolItemImpl<GenericIoCompletion> > >  ptr = ::std::make_shared<IIoCompletionImpl<IThreadPoolItemImpl<GenericIoCompletion> > >();
+		if( ptr )
+		{
+			ptr->setPool(this);
+			ptr->setIoComplete(f);
+			createThreadPoolIoCompletion(hIoObject, ptr.get());
+		}
+		return ::std::static_pointer_cast<IIoCompletion>(ptr);
 	}
 
 	template <class C>
@@ -488,6 +557,17 @@ public:
 				_ftprintf_s(stderr,TEXT("CreateThreadpoolWork failed, GLE=%d.\n"), GetLastError()); 
 			}
 			pWork->setPtp(ptpWork);
+		}
+	}
+
+	template <class C>
+	void createThreadPoolIoCompletion(HANDLE hIo, IIoCompletionImpl<C> *pIoCompletion)
+	{
+		if( pIoCompletion && Enabled() )
+		{
+			PTP_IO pio = ::CreateThreadpoolIo(hIo, IIoCompletion_callback, (PVOID)(IIoCompletion *)pIoCompletion, env());
+			if( pio )
+				pIoCompletion->setPio(pio);
 		}
 	}
 
@@ -526,21 +606,46 @@ public:
 		}
 	}
 
+	static VOID CALLBACK IIoCompletion_callback(__inout      PTP_CALLBACK_INSTANCE Instance,
+													__inout_opt  PVOID Context,
+													__inout_opt  PVOID Overlapped,
+													__in         ULONG IoResult,
+													__in         ULONG_PTR NumberOfBytesTransferred,
+													__inout      PTP_IO /*Io*/)
+	{
+		if( 0 != Context )
+		{
+			IIoCompletion *pIo = reinterpret_cast<IIoCompletion *>(Context);
+			BOOL bRetVal = FALSE;
+			if( pIo->pool()->Enabled() )
+			{
+				bRetVal = pIo->OnComplete(Instance, Overlapped, IoResult, NumberOfBytesTransferred );
+			}
+			//if( !bRetVal )
+			//{
+			//	pIo->pool()->deleteClientConnectionItem(pIo);
+			//}
+		}
+	}
+
 };
 
 template<class C>
 IThreadPoolItemImpl<C>::IThreadPoolItemImpl() : m_pool(NULL)
 {
+	TRACE(TEXT(">>>%S::IThreadPoolItemImpl(), this=0x%x.\n"), typeid(*this).name() , this); 
 }
 
 template<class C>
 IThreadPoolItemImpl<C>::IThreadPoolItemImpl(class CThreadPool *p) : m_pool(p)
 {
+	TRACE(TEXT(">>>%S::IThreadPoolItemImpl(p), this=0x%x.\n"), typeid(*this).name() , this); 
 	p->insertItem(this);
 }
 template<class C>
 IThreadPoolItemImpl<C>::~IThreadPoolItemImpl()
 {
+	TRACE(TEXT("<<<%S::~IThreadPoolItemImpl(), this=0x%x.\n"), typeid(*this).name() , this); 
 	static_cast<CThreadPool *>(pool())->removeItem(this);
 }
 template<class C>
