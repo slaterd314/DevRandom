@@ -2,7 +2,7 @@
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
-#define delete DEBUG_DELETE
+
 #endif
 
 

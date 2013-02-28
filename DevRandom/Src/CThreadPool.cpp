@@ -1,8 +1,11 @@
 #include "stdafx.h"
 
+#include <hash_set>
+#include <algorithm>
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
-#define delete DEBUG_DELETE
+
 #endif
 
 #include "IThreadPool.h"
@@ -10,8 +13,7 @@
 // #include "IIoCompletion.h"
 #include "IClientConnection.h"
 #include "PipeClientConnection.h"
-#include <hash_set>
-#include <algorithm>
+#include "GenericWork.h"
 
 
 template <class C>
@@ -19,6 +21,7 @@ class IThreadPoolItemImpl : public C
 {
 	IThreadPool *m_pool;
 public:
+	IThreadPoolItemImpl();
 	IThreadPoolItemImpl(class CThreadPool *p);
 	~IThreadPoolItemImpl();
 	virtual IThreadPool *pool()
@@ -26,10 +29,8 @@ public:
 		return m_pool;
 	}
 protected:
-	virtual void setPool(IThreadPool *p)
-	{
-		m_pool = p;
-	}
+	friend class CThreadPool;
+	virtual void setPool(IThreadPool *p);
 };
 
 /*
@@ -463,6 +464,18 @@ public:
 		}
 		return pData;
 	}
+
+	virtual ::std::shared_ptr<IWork> newWork(const ::std::function<bool (PTP_CALLBACK_INSTANCE,IWork *) > &f)
+	{
+		::std::shared_ptr<IWorkImpl<IThreadPoolItemImpl<GenericWork> > >  ptr = ::std::make_shared<IWorkImpl<IThreadPoolItemImpl<GenericWork> > >();
+		if( ptr )
+		{
+			ptr->setPool(this);
+			ptr->setFunc(f);
+		}
+		return ::std::static_pointer_cast<IWork>(ptr);
+	}
+
 	template <class C>
 	void createThreadPoolWork(IWorkImpl<C> *pWork)
 	{
@@ -516,6 +529,11 @@ public:
 };
 
 template<class C>
+IThreadPoolItemImpl<C>::IThreadPoolItemImpl() : m_pool(NULL)
+{
+}
+
+template<class C>
 IThreadPoolItemImpl<C>::IThreadPoolItemImpl(class CThreadPool *p) : m_pool(p)
 {
 	p->insertItem(this);
@@ -524,6 +542,13 @@ template<class C>
 IThreadPoolItemImpl<C>::~IThreadPoolItemImpl()
 {
 	static_cast<CThreadPool *>(pool())->removeItem(this);
+}
+template<class C>
+void
+IThreadPoolItemImpl<C>::setPool(IThreadPool *p)
+{
+	static_cast<CThreadPool *>(p)->insertItem(this);
+	m_pool = p;
 }
 
 ::std::shared_ptr<IThreadPool>
