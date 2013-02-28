@@ -1,0 +1,17 @@
+# use glob syntax.
+syntax: glob
+
+*.dll
+*.aps
+*.vcxproj.user
+*.pdb
+*.tlb
+*.csproj.*
+*.cache
+*.suo
+*.cs.orig
+*.exe
+*.exe.manifest
+Win32\*
+x64\*
+_xlk
