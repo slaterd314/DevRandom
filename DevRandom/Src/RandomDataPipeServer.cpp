@@ -26,7 +26,9 @@ auto noio = [=](PTP_CALLBACK_INSTANCE , PVOID, ULONG, ULONG_PTR, IIoCompletion *
 
 IWorkPtr makePipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool)
 {
-	//IWorkPtr pWrk;
+	IWorkPtr pWorkPacket = pPool->newWork([](PTP_CALLBACK_INSTANCE , IWork *){});
+	// connect work request lambda
+#if 1
 	auto connect = [=](PTP_CALLBACK_INSTANCE , IWork *pWork) {
 		if( pWork )
 		{
@@ -50,7 +52,8 @@ IWorkPtr makePipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool)
 		
 			// initialize it with a donothing function. 
 			IIoCompletionPtr pio = pPool->newIoCompletion(hPipe, noio);
-
+			// beginIo IoCompletionPort lambda
+#if 2
 			auto beginIo = [=](PTP_CALLBACK_INSTANCE , PVOID, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo) {
 				IWorkPtr pServerItem(pItem);
 				if( pIo && (NO_ERROR == IoResult) )
@@ -62,7 +65,8 @@ IWorkPtr makePipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool)
 
 					olp->buffer = olp->buffer1;
 					RtlGenRandom(olp->buffer, MyOverlapped::BUFSIZE);
-			
+					//write work request lambda
+#if 3
 					auto write = [=](PTP_CALLBACK_INSTANCE , IWork * /*pWork*/) {
 
 						DWORD cbReplyBytes = MyOverlapped::BUFSIZE;
@@ -100,12 +104,13 @@ IWorkPtr makePipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool)
 							const_cast<IIoCompletionPtr &>(pio2).reset();	// release our hold on the IoCompletion object
 						}
 					};
-
+#endif
 					IWorkPtr pItem2 = pIo->pool()->newWork(write);
 						
 					if( pItem2.get() )
 					{
-						//IIoCompletionPtr pio3 = pio;
+						// kickWrite IoCompletionPort lambda
+#if 4
 						auto kickWrite = [=](PTP_CALLBACK_INSTANCE , PVOID, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo) {
 							if( NO_ERROR == IoResult )
 							{
@@ -117,7 +122,7 @@ IWorkPtr makePipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool)
 							else
 								const_cast<IWorkPtr &>(pItem2).reset();	// release our hold on the work item
 						};
-
+#endif
 						pio->setIoComplete(kickWrite);
 						pItem2->pool()->SubmitThreadpoolWork(pItem2.get());
 						// start a new listening session
@@ -133,7 +138,7 @@ IWorkPtr makePipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool)
 					}
 				}
 			};
-
+#endif
 
 			pio->setIoComplete(beginIo);
 			pPool->StartThreadpoolIo(pio.get());
@@ -153,7 +158,8 @@ IWorkPtr makePipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool)
 			}
 		}
 	};
+#endif
 
-	return pPool->newWork(connect);
-
+	pWorkPacket->setWork(connect);
+	return pWorkPacket;
 }
