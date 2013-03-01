@@ -102,9 +102,6 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="icon1.ico">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="res\DevRandom.ico">
       <Filter>Resource Files</Filter>
     </None>
