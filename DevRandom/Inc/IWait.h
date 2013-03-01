@@ -6,7 +6,7 @@
 
 class 
 __declspec(novtable)
-IWait : virtual public IThreadPoolItem
+IWait : public IThreadPoolItem
 {
 public:
 	typedef ::std::function<void (PTP_CALLBACK_INSTANCE , TP_WAIT_RESULT , IWait *)> FuncPtr;

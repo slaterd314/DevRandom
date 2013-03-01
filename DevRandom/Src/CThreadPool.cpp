@@ -598,7 +598,8 @@ public:
 	{
 		if( pWork && Enabled())
 		{
-			PTP_WORK ptpWork = ::CreateThreadpoolWork(IWork_callback, reinterpret_cast<PVOID>(pWork), env());
+			PVOID Param = reinterpret_cast<PVOID>(static_cast<C *>(pWork));
+			PTP_WORK ptpWork = ::CreateThreadpoolWork(IWork_callback, Param, env());
 		
 			if( NULL == ptpWork )
 			{

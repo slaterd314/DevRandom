@@ -3,4 +3,5 @@
 #include "IThreadPool.h"
 #include "IWork.h"
 	
-IWorkPtr makePipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool);
+// IWorkPtr makePipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool);
+bool startPipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool);

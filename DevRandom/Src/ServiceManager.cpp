@@ -114,7 +114,7 @@ ServiceManager::SvcMain( DWORD dwArgc, LPTSTR *lpszArgv )
   
     // These SERVICE_STATUS members remain as set here
   
-    gSvcStatus.dwServiceType = SERVICE_WIN32_OWN_PROCESS; 
+    gSvcStatus.dwServiceType = SERVICE_WIN32_SHARE_PROCESS; 
     gSvcStatus.dwServiceSpecificExitCode = 0;    
   
     // Report initial status to the SCM
@@ -131,11 +131,19 @@ VOID
 ServiceManager::SvcInit( DWORD, LPTSTR * )
 {
 	pPool = IThreadPool::newPool(IThreadPool::LOW);
-	IWorkPtr pWork = makePipeServer(TEXT("\\\\.\\pipe\\random"), pPool.get());
-	if( pWork )
+	if( startPipeServer(TEXT("\\\\.\\pipe\\random"), pPool.get()) )
 	{
-		pPool->SubmitThreadpoolWork(pWork.get());
+		ReportSvcStatus( SERVICE_RUNNING, NO_ERROR, 0 );
 	}
+	else
+	{
+		ReportSvcStatus( SERVICE_STOPPED, ERROR_SERVICE_SPECIFIC_ERROR, 0 );
+	}
+	//IWorkPtr pWork = makePipeServer(TEXT("\\\\.\\pipe\\random"), pPool.get());
+	//if( pWork )
+	//{
+	//	pPool->SubmitThreadpoolWork(pWork.get());
+	//}
 
 #ifdef DEPRECATED
 	if( pPool )

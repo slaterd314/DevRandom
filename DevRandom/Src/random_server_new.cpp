@@ -73,21 +73,25 @@ int RunServer2()
 	IThreadPoolPtr pPool = IThreadPool::newPool(IThreadPool::LOW);
 	if( pPool )
 	{
-		IWorkPtr pWork = makePipeServer(TEXT("\\\\.\\pipe\\random"), pPool.get());
-		if( pWork )
+		if( startPipeServer(TEXT("\\\\.\\pipe\\random"), pPool.get()) )
 		{
-			pPool->SubmitThreadpoolWork(pWork.get());
+
+			//IWorkPtr pWork = makePipeServer(TEXT("\\\\.\\pipe\\random"), pPool.get());
+			//if( pWork )
+			//{
+			//	pPool->SubmitThreadpoolWork(pWork.get());
+			//}
+			//IClientConnection *pConn = pPool->newNamedPipeConnection();
+			//if( pConn )
+			//{
+			//	IWork *pWork = pPool->newWaitForNewConnection(pConn);
+			//	if( pWork )
+			//		pPool->SubmitThreadpoolWork(pWork);
+			//}		
+			WaitForCallbacks();
+			pPool->Shutdown();
+			pPool.reset();
 		}
-		//IClientConnection *pConn = pPool->newNamedPipeConnection();
-		//if( pConn )
-		//{
-		//	IWork *pWork = pPool->newWaitForNewConnection(pConn);
-		//	if( pWork )
-		//		pPool->SubmitThreadpoolWork(pWork);
-		//}		
-		WaitForCallbacks();
-		pPool->Shutdown();
-		pPool.reset();
 	}	
 	
 	return 0;

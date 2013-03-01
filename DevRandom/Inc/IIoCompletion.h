@@ -8,7 +8,7 @@
 
 class
 __declspec(novtable)
-IIoCompletion : virtual public IThreadPoolItem
+IIoCompletion : public IThreadPoolItem
 {
 public:
 	virtual ~IIoCompletion() {}

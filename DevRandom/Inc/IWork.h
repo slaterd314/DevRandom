@@ -6,7 +6,7 @@
 
 class 
 __declspec(novtable)
-IWork : virtual public IThreadPoolItem
+IWork : public IThreadPoolItem
 {
 public:
 	typedef ::std::function<void (PTP_CALLBACK_INSTANCE , IWork *)> FuncPtr;

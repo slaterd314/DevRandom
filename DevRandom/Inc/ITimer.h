@@ -6,7 +6,7 @@
 
 class 
 __declspec(novtable)
-ITimer : virtual public IThreadPoolItem
+ITimer : public IThreadPoolItem
 {
 public:
 	typedef ::std::function<void (PTP_CALLBACK_INSTANCE, ITimer *)> FuncPtr;
