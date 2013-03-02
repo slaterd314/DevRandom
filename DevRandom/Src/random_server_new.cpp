@@ -7,7 +7,6 @@
 
 
 #include "IThreadPool.h"
-#include "IClientConnection.h"
 #include "IWork.h"
 #include "ServiceManager.h"
 #include "RandomDataPipeServer.h"
@@ -73,24 +72,21 @@ int RunServer2()
 	IThreadPoolPtr pPool = IThreadPool::newPool(IThreadPool::LOW);
 	if( pPool )
 	{
-		if( startPipeServer(TEXT("\\\\.\\pipe\\random"), pPool.get()) )
+		HANDLE hEvent = ::CreateEvent(NULL,TRUE,FALSE,NULL);
+		if( hEvent )
 		{
-
-			//IWorkPtr pWork = makePipeServer(TEXT("\\\\.\\pipe\\random"), pPool.get());
-			//if( pWork )
-			//{
-			//	pPool->SubmitThreadpoolWork(pWork.get());
-			//}
-			//IClientConnection *pConn = pPool->newNamedPipeConnection();
-			//if( pConn )
-			//{
-			//	IWork *pWork = pPool->newWaitForNewConnection(pConn);
-			//	if( pWork )
-			//		pPool->SubmitThreadpoolWork(pWork);
-			//}		
-			WaitForCallbacks();
-			pPool->Shutdown();
-			pPool.reset();
+			IDevRandomServer::Ptr pServer = createPipeServer(TEXT("\\\\.\\pipe\\random"), hEvent, pPool.get());
+			if( pServer )
+			{
+				if( pServer->runServer() )
+				{
+					WaitForCallbacks();
+					::SetEvent(hEvent);
+					Sleep(1000);
+					pPool->Shutdown();					
+					CloseHandle(hEvent);
+				}
+			}
 		}
 	}	
 	

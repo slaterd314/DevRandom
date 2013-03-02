@@ -58,6 +58,10 @@ public:
 	{
 		m_pio = p;
 	}
+	virtual PTP_IO handle()
+	{
+		return m_pio;
+	}
 };
 
 
@@ -311,6 +315,9 @@ private:
 	virtual void Shutdown()
 	{
 		InterlockedCompareExchange(&m_bEnabled,FALSE,TRUE);
+
+		Sleep(10000);
+
 		CloseThreadpoolCleanupGroupMembers(env()->CleanupGroup, TRUE, NULL);
 		CloseThreadpoolCleanupGroup(env()->CleanupGroup);
 		env()->CleanupGroup = NULL;
@@ -378,6 +385,16 @@ private:
 
 		return bRetVal;
 	}
+	virtual bool CloseThreadpoolWait(class IWait *wait)
+	{
+		bool bRetVal = (NULL != wait) && Enabled();
+		if( bRetVal )
+		{
+			::CloseThreadpoolWait(wait->handle());
+		}
+
+		return bRetVal;
+	}
 
 	bool SetThreadpoolWait(class IWait *wait, HANDLE h, PFILETIME pftTimeout)
 	{
@@ -392,6 +409,14 @@ private:
 		bool bRetVal = (NULL != work) && Enabled();
 		if( bRetVal )
 			::SubmitThreadpoolWork(work->handle());
+		return bRetVal;
+	}
+
+	virtual bool SetThreadpoolWait(HANDLE h, PFILETIME pftTImeout, class IWait *wait)
+	{
+		bool bRetVal = (NULL != wait) && Enabled();
+		if( bRetVal )
+			::SetThreadpoolWait(wait->handle(),h,pftTImeout);
 		return bRetVal;
 	}
 
@@ -646,7 +671,7 @@ public:
 		IWork *pWork = reinterpret_cast<IWork *>(Context);
 		if( pWork )
 		{
-			if( pWork->pool()->Enabled() )
+			//if( pWork->pool()->Enabled() )
 				pWork->Execute(Instance);
 		}
 #ifdef DEPRECATED
@@ -660,7 +685,7 @@ public:
 		IWait *pWait = reinterpret_cast<IWait *>(Context);
 		if( pWait )
 		{
-			if( pWait->pool()->Enabled() )
+			//if( pWait->pool()->Enabled() )
 				pWait->Execute(Instance,WaitResult);
 		}
 	}
@@ -670,7 +695,7 @@ public:
 		ITimer *pTimer = reinterpret_cast<ITimer *>(Context);
 		if( pTimer )
 		{
-			if( pTimer->pool()->Enabled() )
+			//if( pTimer->pool()->Enabled() )
 				pTimer->Execute(Instance);
 		}
 	}
@@ -706,7 +731,7 @@ public:
 		if( 0 != Context )
 		{
 			IIoCompletion *pIo = reinterpret_cast<IIoCompletion *>(Context);
-			if( pIo->pool()->Enabled() )
+			//if( pIo->pool()->Enabled() )
 				pIo->OnComplete(Instance, Overlapped, IoResult, NumberOfBytesTransferred );
 		}
 	}

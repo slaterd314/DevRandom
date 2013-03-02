@@ -3,6 +3,7 @@
 #define __SERVICEMANAGER_H__
 
 #include "IThreadPool.h"
+#include "RandomDataPipeServer.h"
 
 class ServiceManager
 {
@@ -31,6 +32,8 @@ private:
 	static IThreadPoolPtr			pPool;
 	static LPCTSTR			lpszServiceName;
 	static LPCTSTR			lpszServiceDescription;
+	static IDevRandomServer::Ptr m_Server;
+	static HANDLE			m_hEvent;
 
 };
 

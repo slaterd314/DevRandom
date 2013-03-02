@@ -22,6 +22,7 @@ public:
 								  __in         ULONG IoResult,
 								  __in         ULONG_PTR NumberOfBytesTransferred,
 								  __inout      PTP_IO Io);
+	virtual PTP_IO handle()=0;
 };
 
 typedef ::std::shared_ptr<IIoCompletion> IIoCompletionPtr;
