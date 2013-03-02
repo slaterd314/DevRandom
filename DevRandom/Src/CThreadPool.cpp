@@ -58,15 +58,6 @@ public:
 	{
 		m_pio = p;
 	}
-	void setIoComplete(const IIoCompletion::FuncPtr &f)
-	{
-		__if_exists(C::DoSetIoComplete) {
-			C::DoSetIoComplete(f);
-		}
-		__if_not_exists(C::DoSetIoComplete) {
-		UNREFERENCED_PARAMETER(f);
-		}
-	}
 };
 
 
@@ -327,19 +318,19 @@ private:
 		DestroyThreadpoolEnvironment(&m_env);
 		memset(&m_env, '\0', sizeof(m_env));
 		CloseThreadpool(pool);
-		
-		if( m_items.size() > 0 )
-		{
-			::std::vector<IThreadPoolItem *>theList;
-			theList.reserve(m_items.size());
-			theList.insert(theList.begin(),m_items.begin(), m_items.end());
-			::std::for_each(theList.begin(), theList.end(), [&](IThreadPoolItem *pItem) {
-				if( pItem )
-				{
-					delete pItem;
-				}
-			});
-		}
+		//
+		//if( m_items.size() > 0 )
+		//{
+		//	::std::vector<IThreadPoolItem *>theList;
+		//	theList.reserve(m_items.size());
+		//	theList.insert(theList.begin(),m_items.begin(), m_items.end());
+		//	::std::for_each(theList.begin(), theList.end(), [&](IThreadPoolItem *pItem) {
+		//		if( pItem )
+		//		{
+		//			delete pItem;
+		//		}
+		//	});
+		//}
 	}
 
 	virtual void deleteWorkItem(IWork *&pWork)

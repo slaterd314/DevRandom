@@ -2,6 +2,7 @@
 #include "IIoCompletion.h"
 #include "IThreadPool.h"
 #include "IWork.h"
+#include "SpinLock.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -16,6 +17,20 @@ struct MyOverlapped : public OVERLAPPED, public ::std::enable_shared_from_this<M
 	unsigned __int8 buffer1[BUFSIZE];
 	unsigned __int8 buffer2[BUFSIZE];
 	MyOverlapped()
+	{
+		reset();
+	}
+	MyOverlapped(const MyOverlapped &other) : OVERLAPPED(static_cast<const OVERLAPPED &>(other))
+	{
+		memcpy(buffer1,other.buffer1,sizeof(buffer1));
+		memcpy(buffer2,other.buffer2,sizeof(buffer2));
+		if( other.buffer == other.buffer1 )
+			buffer = buffer1;
+		else
+			buffer = buffer2;
+
+	}
+	void reset()
 	{
 		memset(buffer1,'\0',sizeof(buffer1));
 		memset(buffer2,'\0',sizeof(buffer2));
@@ -59,6 +74,283 @@ typedef ::std::shared_ptr<MyOverlapped> MyOverlappedPtr;
 //		m_ptr = p;
 //	}
 //};
+
+class DevRandomClientConnection : public ::std::enable_shared_from_this<DevRandomClientConnection>
+{
+	struct lock
+	{
+		SpinLock &m_lock;
+		lock(SpinLock &l) : m_lock(l) { m_lock.acquire(); }
+		~lock() { m_lock.release(); }
+	private:
+		lock &operator=(const lock &) { return *this; }
+	};
+public:
+	typedef ::std::shared_ptr<class DevRandomClientConnection> Ptr;
+
+	DevRandomClientConnection(const IIoCompletionPtr &pio, HANDLE hPipe, const MyOverlapped &olp, IThreadPool *pPool) :
+		m_pio(pio),
+		m_hPipe(hPipe),
+		m_olp(olp),
+		m_lock(false)
+	{
+		m_work = pPool->newWork([&](PTP_CALLBACK_INSTANCE Instance, IWork *pWork) {
+			writeToClient(Instance, pWork);
+		});
+
+		m_pio->setIoComplete([&](PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered, IIoCompletion *pIo){
+			onWriteClientComplete(Instance, Overlapped, IoResult, nBytesTransfered, pIo);
+		});
+
+		m_olp.buffer = m_olp.buffer1;
+		RtlGenRandom(m_olp.buffer, MyOverlapped::BUFSIZE);
+
+	}
+
+	void makeSelfReference()
+	{
+		m_self = this->shared_from_this();	// self-reference - we live in the thread pool 
+	}
+public:
+	static Ptr create(const IIoCompletionPtr &pio, HANDLE hPipe, const MyOverlapped &olp, IThreadPool *pPool)
+	{
+		return ::std::make_shared<DevRandomClientConnection>(pio, hPipe, olp, pPool);
+	}
+
+	bool checkWriteFileError()
+	{
+		bool bWriteSuccess = false;
+		switch(GetLastError())
+		{
+			case ERROR_IO_PENDING:
+				bWriteSuccess = true;
+				break;
+			default:
+				break;
+		}
+		return bWriteSuccess;
+	}
+
+	void writeToClient(PTP_CALLBACK_INSTANCE /*Instance*/, IWork * /*pWork*/)
+	{
+		lock locked(m_lock);
+		bool bKeepWriting = true;
+		DWORD cbReplyBytes = MyOverlapped::BUFSIZE;
+		DWORD cbWritten = 0;
+
+		unsigned __int8 *pWritePtr = m_olp.buffer;
+		m_olp.swapBuffers();
+		unsigned __int8 *pGeneratePtr = m_olp.buffer;
+
+		if( m_pio.get() )
+		{
+			m_pio->pool()->StartThreadpoolIo(m_pio.get());
+			// Write the reply to the pipe. 
+			BOOL fSuccess = WriteFile( 
+						m_hPipe,        // handle to pipe 
+						pWritePtr,     // buffer to write from 
+						cbReplyBytes, // number of bytes to write 
+						&cbWritten,   // number of bytes written 
+						&m_olp);        // overlapped I/O 
+
+			if(!fSuccess)
+				fSuccess = checkWriteFileError();
+
+			if (!fSuccess /*|| cbReplyBytes != cbWritten*/ )
+			{   
+				_ftprintf_s(stderr,TEXT("WriteData::operator() failed, GLE=%d.\n"), GetLastError());
+				bKeepWriting = false;
+			}
+			else if( FALSE == RtlGenRandom(pGeneratePtr, MyOverlapped::BUFSIZE) )
+			{
+				m_pio->pool()->CancelThreadpoolIo(m_pio.get());
+				bKeepWriting = false;
+			}
+		}
+		else
+			bKeepWriting = false;
+		// release our hold on the work object that contains us.
+		// this should trigger deletion of the work object and everything else associated with it.
+		if( !bKeepWriting && m_work )
+		{
+			m_self.reset();	// release ourselves from the thread pool
+		}
+	}
+
+	void onWriteClientComplete(PTP_CALLBACK_INSTANCE , PVOID /*Overlapped*/, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo)
+	{
+		if( NO_ERROR == IoResult && m_work )
+		{
+			lock locked(m_lock);
+			pIo->pool()->SubmitThreadpoolWork(m_work.get());
+		}
+	}
+
+	bool runClient()
+	{
+		bool bRetVal = false;
+		if( m_work && m_pio && m_hPipe != INVALID_HANDLE_VALUE )
+		{
+			bRetVal = m_work->pool()->SubmitThreadpoolWork(m_work.get());
+		}
+		return bRetVal;
+	}
+
+	~DevRandomClientConnection()
+	{
+		lock locked(m_lock);
+		IThreadPool *pPool = m_pio ? m_pio->pool() : (m_work ? m_work->pool() : NULL) ;
+		if( pPool && pPool->Enabled() )
+		{
+			if( m_pio )
+				pPool->CloseThreadpoolIo(m_pio.get());
+			if( m_work )
+				pPool->CloseThreadpoolWork(m_work.get());
+		}
+
+		if( INVALID_HANDLE_VALUE != m_hPipe )
+			CloseHandle(m_hPipe);
+	}
+
+private:
+	IWorkPtr			m_work;
+	IIoCompletionPtr	m_pio;
+	HANDLE				m_hPipe;
+	MyOverlapped		m_olp;
+	Ptr					m_self;
+	SpinLock			m_lock;
+};
+
+class ListenForDevRandomClient : public ::std::enable_shared_from_this<ListenForDevRandomClient>
+{
+public:
+	typedef ::std::shared_ptr<class ListenForDevRandomClient> Ptr;
+private:
+	IWorkPtr			m_work;
+	IIoCompletionPtr	m_pio;
+	HANDLE				m_hPipe;
+	MyOverlapped		m_olp;
+	::std::_tstring		m_pipeName;
+	Ptr					m_self;
+public:
+	typedef ::std::shared_ptr<class ListenForDevRandomClient> Ptr;
+	ListenForDevRandomClient(LPCTSTR lpszPipeName, IThreadPool *pPool) : m_hPipe(INVALID_HANDLE_VALUE), m_pipeName(lpszPipeName)
+	{
+		m_work = pPool->newWork([&](PTP_CALLBACK_INSTANCE Instance, IWork *pWork) {
+			listenForClient(Instance, pWork);
+		});
+	}
+
+	void makeSelfReference()
+	{
+		// self-reference
+		m_self = shared_from_this();
+	}
+
+	static Ptr create(LPCTSTR lpszPipeName, IThreadPool *pPool)
+	{
+		return ::std::make_shared<ListenForDevRandomClient>(lpszPipeName, pPool);
+	}
+
+	bool startServer()
+	{
+		bool bRetVal = false;
+		if( m_work && m_work->pool() )
+			bRetVal = m_work->pool()->SubmitThreadpoolWork(m_work.get());
+		return bRetVal;
+	}
+
+	void listenForClient(PTP_CALLBACK_INSTANCE , IWork *pWork)
+	{
+		if( pWork && pWork->pool() )
+		{
+			IThreadPool *pPool = pWork->pool();
+			
+
+			m_hPipe = CreateNamedPipe(m_pipeName.c_str(),
+							PIPE_ACCESS_OUTBOUND|FILE_FLAG_OVERLAPPED,
+							PIPE_TYPE_MESSAGE|PIPE_WAIT,
+							PIPE_UNLIMITED_INSTANCES,
+							MyOverlapped::BUFSIZE,
+							MyOverlapped::BUFSIZE,
+							0,
+							NULL);
+			if( INVALID_HANDLE_VALUE == m_hPipe )
+			{
+				_ftprintf_s(stderr,TEXT("CreateNamedPipe failed, GLE=%d.\n"), GetLastError()); 
+			}
+			else
+			{
+				m_olp.reset();
+
+				if( RtlGenRandom(m_olp.buffer, MyOverlapped::BUFSIZE) )
+				{				
+			
+					m_pio = pPool->newIoCompletion(m_hPipe, [&](PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered, IIoCompletion *pIo){
+						onConnectClient(Instance, Overlapped, IoResult, nBytesTransfered, pIo);
+					});
+
+					pPool->StartThreadpoolIo(m_pio.get());
+			
+					BOOL fConnected = ConnectNamedPipe(m_hPipe, &m_olp);	// asynchronous ConnectNamedPipe() call - this call will return immediately
+																		// and the Io completion routine will be called when a client connects.
+					if( !fConnected )
+					{
+						if( GetLastError() == ERROR_IO_PENDING || GetLastError() == ERROR_PIPE_CONNECTED )
+							fConnected = TRUE;
+					}
+					if( !fConnected )
+					{
+						pPool->CancelThreadpoolIo(m_pio.get());	// prevent a memory leak if ConnectNamedPipe() fails.
+					}
+				}
+			}
+		}
+	}
+
+
+	void onConnectClient(PTP_CALLBACK_INSTANCE , PVOID Overlapped, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo)
+	{
+		MyOverlapped *pOlp = reinterpret_cast<MyOverlapped *>(Overlapped);
+		if( pIo && (NO_ERROR == IoResult) && pOlp)
+		{		
+			IThreadPool *pPool = pIo->pool();
+			
+			DevRandomClientConnection::Ptr pClient = ::std::make_shared<DevRandomClientConnection>(m_pio,m_hPipe, m_olp, pPool);
+
+			if( pClient )
+			{
+				pClient->makeSelfReference();
+				pClient->runClient();
+			}
+
+			m_pio.reset();
+			m_hPipe = INVALID_HANDLE_VALUE;
+
+			// start listening again
+			pPool->SubmitThreadpoolWork(m_work.get());
+		}
+	}
+};
+
+bool startPipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool)
+{
+	bool bRetVal = false;
+	if( pPool )
+	{
+		ListenForDevRandomClient::Ptr pServer = ListenForDevRandomClient::create(lpszPipeName, pPool);
+
+		if( pServer )
+		{
+			pServer->makeSelfReference();
+			bRetVal = pServer->startServer();
+		}
+	}
+	return bRetVal;
+}
+
+
+#ifdef NEVER
 
 class Connect//  : public IWork::FuncPtr
 {
@@ -109,7 +401,7 @@ public:
 	}
 };
 
-class WriteData //  : public IWork::FuncPtr
+class WriteData : public ::std::enable_shared_from_this<WriteData> //  : public IWork::FuncPtr
 {
 	IIoCompletionPtr m_pio;
 	HANDLE hPipe;
@@ -147,7 +439,7 @@ public:
 
 };
 
-Connect::Connect(LPCTSTR lpsz, IThreadPool *pPool) : lpszPipeName(lpsz)
+Connect::Connect(LPCTSTR lpsz, IThreadPool * /*pPool*/) : lpszPipeName(lpsz)
 {
 	//if( pPool )
 	//{
@@ -222,8 +514,8 @@ OnConnect::operator()(PTP_CALLBACK_INSTANCE , PVOID Overlapped, ULONG IoResult, 
 			if( pWriteDataToPipe.get() )
 			{
 				write->setWork(pWriteDataToPipe);
-				::std::shared_ptr<WriteData> ptr2(write);
-				write->setPointer(ptr2);
+				// ::std::shared_ptr<WriteData> ptr2(write);
+				write->setPointer(write);
 				pWriteDataToPipe->setWork(IWork::FuncPtr(*write));
 				//write work request lambda
 
@@ -243,7 +535,7 @@ OnConnect::operator()(PTP_CALLBACK_INSTANCE , PVOID Overlapped, ULONG IoResult, 
 
 }
 
-WriteData::WriteData(HANDLE h, IIoCompletion *pio, const MyOverlappedPtr &olp, IThreadPool *pPool) : hPipe(h), m_pio(::std::static_pointer_cast<IIoCompletion>(pio->shared_from_this())), m_olp(olp)
+WriteData::WriteData(HANDLE h, IIoCompletion *pio, const MyOverlappedPtr &olp, IThreadPool * /*pPool*/) : hPipe(h), m_pio(::std::static_pointer_cast<IIoCompletion>(pio->shared_from_this())), m_olp(olp)
 {
 	//if( pPool )
 	//{
@@ -253,7 +545,7 @@ WriteData::WriteData(HANDLE h, IIoCompletion *pio, const MyOverlappedPtr &olp, I
 }
 
 void
-WriteData::operator()(PTP_CALLBACK_INSTANCE , IWork *pWork)
+WriteData::operator()(PTP_CALLBACK_INSTANCE , IWork * /*pWork*/)
 {
 	bool bKeepWriting = true;
 	DWORD cbReplyBytes = MyOverlapped::BUFSIZE;
@@ -297,8 +589,10 @@ WriteData::operator()(PTP_CALLBACK_INSTANCE , IWork *pWork)
 	// this should trigger deletion of the work object and everything else associated with it.
 	if( !bKeepWriting && m_work )
 	{
+		::std::shared_ptr<WriteData> ptr(this->shared_from_this());
+		m_work->setWork(IWork::FuncPtr([](PTP_CALLBACK_INSTANCE , IWork *){}));
 		m_work.reset();
-		release();
+		//release();
 	}
 }
 
@@ -319,6 +613,7 @@ KickWrite::operator()(PTP_CALLBACK_INSTANCE , PVOID, ULONG IoResult, ULONG_PTR, 
 	}
 }
 
+
 bool startPipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool)
 {
 	bool bRetVal = false;
@@ -336,6 +631,7 @@ bool startPipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool)
 	}
 	return bRetVal;
 }
+#endif
 
 #ifdef NEVER
 

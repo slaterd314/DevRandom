@@ -27,6 +27,14 @@
 #include <memory>
 #include <functional>
 
+#include <string>
+
+#if defined(_UNICODE) || defined(UNICODE)
+#define _tstring wstring
+#else
+#define _tstring string
+#endif
+
 #pragma warning( default : 4995 )
 
 #ifdef _DEBUG
@@ -35,7 +43,6 @@ void TRACE(LPCTSTR lpszFormat, ...);
 
 #define THIS_FILE __FILE__
 #define DEBUG_NEW new(_NORMAL_BLOCK, THIS_FILE, __LINE__)
-#define DEBUG_DELETE delete
 
 #else
 

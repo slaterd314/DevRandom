@@ -8,7 +8,7 @@ typedef __int64 MACHINE_INT;
 #define ALIGN __declspec(align(64))
 #else
 #define interlockedCompareExchange(a,b,c) InterlockedCompareExchange(a,b,c)
-typedef __int32 MACHINE_INT;
+typedef unsigned __int32 MACHINE_INT;
 #define ALIGN __declspec(align(32))
 #endif
 
