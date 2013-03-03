@@ -33,10 +33,17 @@ ServiceManager::RunService()
 		{lpsz , (LPSERVICE_MAIN_FUNCTION) SvcMain }, 
 		{ NULL, NULL } 
 	}; 
-	if (!StartServiceCtrlDispatcher( DispatchTable )) 
-	{ 
-		SvcReportEvent(TEXT("StartServiceCtrlDispatcher")); 
-	} 		
+	pPool = IThreadPool::newPool(IThreadPool::LOW);
+	if( pPool )
+	{
+		if (!StartServiceCtrlDispatcher( DispatchTable )) 
+		{ 
+			SvcReportEvent(TEXT("StartServiceCtrlDispatcher")); 
+		}
+		pPool->Shutdown();
+	}
+	else
+		SvcReportEvent(TEXT("IThreadPool::newPool")); 
 }
 
 
@@ -89,7 +96,7 @@ ServiceManager::HandlerEx(__in  DWORD dwControl, __in  DWORD /*dwEventType*/, __
 		case SERVICE_CONTROL_STOP:
 			ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 0);
 			::SetEvent(m_hEvent);
-			pPool->Shutdown();
+			// pPool->Shutdown();
 			m_Server.reset();
 			CloseHandle(m_hEvent);
 			ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
@@ -134,7 +141,6 @@ ServiceManager::SvcMain( DWORD dwArgc, LPTSTR *lpszArgv )
 VOID
 ServiceManager::SvcInit( DWORD, LPTSTR * )
 {
-	pPool = IThreadPool::newPool(IThreadPool::LOW);
 	if( pPool )
 	{
 		m_hEvent = ::CreateEvent(NULL,TRUE,FALSE,NULL);

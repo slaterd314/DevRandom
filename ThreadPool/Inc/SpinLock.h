@@ -9,10 +9,10 @@
 typedef __int64 MACHINE_INT;
 #define ALIGN __declspec(align(64))
 #else
-#define interlockedCompareExchange(a,b,c) InterlockedCompareExchange(a,b,c)
+#define interlockedCompareExchange(a,b,c) _InterlockedCompareExchange(a,b,c)
 #define interlockedIncrement(a) InterlockedIncrement(a)
 #define interlockedDecrement(a) InterlockedDecrement(a)
-typedef unsigned __int32 MACHINE_INT;
+typedef __int32 MACHINE_INT;
 #define ALIGN __declspec(align(32))
 #endif
 
@@ -20,14 +20,23 @@ class
 ALIGN
 SpinLock
 {
+protected:
+	/// Change m_n to newVal if it equals test using InterlockedCompareExchange instruction.
+	/// use a spin-wait to wait for the change - this call blocks until it succeeds
 	volatile ALIGN MACHINE_INT m_n;
 	__forceinline
-	void ChangeIf(int t, int n)
+	void ChangeIf(const int &test, const int &newVal)
 	{
-		ALIGN MACHINE_INT test = t;
-		ALIGN MACHINE_INT newVal = n;
-		while( interlockedCompareExchange(&m_n, newVal, test) != test )
+		const ALIGN MACHINE_INT t = test;
+		const ALIGN MACHINE_INT n = newVal;
+		// Note: Intel's example assembly code describing the PAUSE (_mm_pause) instruction that 
+		// YieldProcessor() maps to is organized like this. First, attempt to change the value before going into the
+		// spin-wait. In intel code, the spin-wait is organized to call PAUSE at the beginning of the loop
+		// this is supposed to lend siginificant performance benefits to spin-wait loops making tghem exit much faster
+		if(  interlockedCompareExchange(&m_n, n, t) == t  )
 			;
+		else do YieldProcessor();
+			while( interlockedCompareExchange(&m_n, n, t) != t );
 	}
 public:
 	SpinLock(bool bInitialLock) : m_n(bInitialLock ? 1 : 0 ){}
@@ -43,19 +52,10 @@ public:
 
 class
 ALIGN
-SpinWait
+SpinWait : public SpinLock
 {
-	volatile ALIGN MACHINE_INT m_n;
-	__forceinline
-	void ChangeIf(int t, int n)
-	{
-		ALIGN MACHINE_INT test = t;
-		ALIGN MACHINE_INT newVal = n;
-		while( interlockedCompareExchange(&m_n, newVal, test) != test )
-			;
-	}
 public:
-	SpinWait(bool bInitialLock) : m_n(bInitialLock ? 1 : 0 ){}
+	SpinWait(bool bInitialLock) : SpinLock(bInitialLock){}
 	__forceinline void inc()
 	{
 		interlockedIncrement(&m_n);
