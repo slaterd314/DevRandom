@@ -82,7 +82,7 @@ int RunServer2()
 				{
 					WaitForCallbacks();
 					::SetEvent(hEvent);
-					Sleep(1000);
+					Sleep(50000);
 					pPool->Shutdown();					
 					CloseHandle(hEvent);
 				}

@@ -443,6 +443,31 @@ private:
 		return bRetVal;
 	}
 
+	virtual void WaitForThreadpoolWorkCallbacks(class IWork *work, BOOL bCancelPendingCallbacks)
+	{
+		if( Enabled() && work && work->handle() )
+			::WaitForThreadpoolWorkCallbacks(work->handle(), bCancelPendingCallbacks);
+	}
+
+	virtual void WaitForThreadpoolIoCallbacks(class IIoCompletion *pio, BOOL bCancelPendingCallbacks)
+	{
+		if( Enabled() && pio && pio->handle() )
+			::WaitForThreadpoolIoCallbacks(pio->handle(), bCancelPendingCallbacks);
+	}
+
+	virtual void WaitForThreadpoolWaitCallbacks(class IWait *wait, BOOL bCancelPendingCallbacks)
+	{
+		if( Enabled() && wait && wait->handle() )
+			::WaitForThreadpoolWaitCallbacks(wait->handle(), bCancelPendingCallbacks);
+	}
+
+	virtual void WaitForThreadpoolTimerCallbacks(class ITimer *timer, BOOL bCancelPendingCallbacks)
+	{
+		if( Enabled() && timer && timer->handle() )
+			::WaitForThreadpoolTimerCallbacks(timer->handle(), bCancelPendingCallbacks);
+	}
+
+
 	//virtual void WaitForThreadpoolIoCallbacks(class IClientConnection *pCn, BOOL bCancelPending)
 	//{
 	//	if( pCn )

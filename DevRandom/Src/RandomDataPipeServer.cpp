@@ -78,6 +78,11 @@ typedef ::std::shared_ptr<MyOverlapped> MyOverlappedPtr;
 
 class DevRandomClientConnection : public ::std::enable_shared_from_this<DevRandomClientConnection>
 {
+	enum StopCaller{
+		WORK_CALL,
+		WAIT_CALL,
+		IO_CALL
+	} ;
 	struct lock
 	{
 		SpinLock &m_lock;
@@ -93,7 +98,10 @@ public:
 		m_pio(pio),
 		m_hPipe(hPipe),
 		m_olp(olp),
-		m_lock(false)
+		m_lock(false),
+		m_stop(false),
+		m_asyncIo(false),
+		m_asyncWork(false)
 	{
 		m_work = pPool->newWork([&](PTP_CALLBACK_INSTANCE Instance, IWork *pWork) {
 			writeToClient(Instance, pWork);
@@ -146,6 +154,9 @@ public:
 	void writeToClient(PTP_CALLBACK_INSTANCE /*Instance*/, IWork * /*pWork*/)
 	{
 		//lock locked(m_lock);
+		m_asyncWork = false;
+		if( m_stop )
+			return;
 		bool bKeepWriting = true;
 		DWORD cbReplyBytes = MyOverlapped::BUFSIZE;
 		DWORD cbWritten = 0;
@@ -156,6 +167,7 @@ public:
 
 		if( m_pio.get() )
 		{
+			m_asyncIo = true;
 			m_pio->pool()->StartThreadpoolIo(m_pio.get());
 			// Write the reply to the pipe. 
 			BOOL fSuccess = WriteFile( 
@@ -170,6 +182,7 @@ public:
 
 			if (!fSuccess /*|| cbReplyBytes != cbWritten*/ )
 			{   
+				m_asyncIo = false;
 				_ftprintf_s(stderr,TEXT("WriteData::operator() failed, GLE=%d.\n"), GetLastError());
 				bKeepWriting = false;
 			}
@@ -185,21 +198,29 @@ public:
 		// this should trigger deletion of the work object and everything else associated with it.
 		if( !bKeepWriting  )
 		{
-			if( m_self )
-				m_self.reset();	// release ourselves from the thread pool
+			//if( m_self )
+			//	m_self.reset();	// release ourselves from the thread pool			
+			Stop(WORK_CALL);
 		}
 	}
 
 	void onWriteClientComplete(PTP_CALLBACK_INSTANCE , PVOID /*Overlapped*/, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo)
 	{
+		m_asyncIo = false;
+		if( m_stop )
+			return;
 		if( NO_ERROR == IoResult )
 		{
 			//lock locked(m_lock);
+			m_asyncWork = true;
 			if( !pIo->pool()->SubmitThreadpoolWork(m_work.get()) )
-				m_self.reset();
+			{
+				Stop(IO_CALL);// m_self.reset();
+				m_asyncWork = false;
+			}
 		}
 		else
-			m_self.reset();
+			Stop(IO_CALL);// m_self.reset();
 	}
 
 	bool runClient()
@@ -214,9 +235,12 @@ public:
 
 	void onWaitSignaled(PTP_CALLBACK_INSTANCE , TP_WAIT_RESULT /*WaitResult*/, IWait * /*pWait*/)
 	{
-		if( m_wait )
-			m_wait.reset();
-		m_self.reset();
+		if( m_stop )
+			return;
+		//if( m_wait )
+		//	m_wait.reset();
+		//m_self.reset();
+		Stop(WAIT_CALL);// 
 	}
 
 	~DevRandomClientConnection()
@@ -227,24 +251,57 @@ public:
 		{
 			if( m_work)
 			{
-				::WaitForThreadpoolWorkCallbacks(m_work->handle(), TRUE);
+				//::WaitForThreadpoolWorkCallbacks(m_work->handle(), TRUE);
 				pPool->CloseThreadpoolWork(m_work.get());
 			}
 			if( m_pio )
 			{
-				::WaitForThreadpoolIoCallbacks(m_pio->handle(), FALSE);
+				//::WaitForThreadpoolIoCallbacks(m_pio->handle(), FALSE);
 				pPool->CloseThreadpoolIo(m_pio.get());
 			}
 			if( m_wait )
 			{
-				::WaitForThreadpoolWaitCallbacks(m_wait->handle(),TRUE);
+				//::WaitForThreadpoolWaitCallbacks(m_wait->handle(),TRUE);
 				pPool->CloseThreadpoolWait(m_wait.get());
 			}				
 		}
 
 		if( INVALID_HANDLE_VALUE != m_hPipe )
 			CloseHandle(m_hPipe);
+		m_hPipe = INVALID_HANDLE_VALUE;
 	}
+
+
+	void Stop(StopCaller caller)
+	{
+		if( interlockedCompareExchange(&m_stop, 1, 0) == 0 )
+		{
+			IThreadPool *pPool = m_pio ? m_pio->pool() : (m_work ? m_work->pool() : NULL) ;
+			if( pPool && pPool->Enabled() )
+			{
+				if( INVALID_HANDLE_VALUE != m_hPipe )
+				{
+					//HANDLE h = InterlockedExchangePointer(&m_hPipe, INVALID_HANDLE_VALUE);
+					//CancelIoEx(h, &m_olp);
+					if( caller != IO_CALL &&  m_pio && m_asyncIo)
+					{
+						pPool->WaitForThreadpoolIoCallbacks(m_pio.get(), FALSE);
+						//pPool->CloseThreadpoolIo(m_pio.get());
+					}
+				}
+				if( caller != WORK_CALL && m_work && m_asyncWork)
+					pPool->WaitForThreadpoolWorkCallbacks(m_work.get(), FALSE);
+
+				if( caller != WAIT_CALL &&  m_wait )
+				{
+					pPool->WaitForThreadpoolWaitCallbacks(m_wait.get(),FALSE);
+					//pPool->CloseThreadpoolWait(m_wait.get());
+				}				
+			}
+			m_self.reset();
+		}
+	}
+
 
 private:
 	IWorkPtr			m_work;
@@ -254,6 +311,9 @@ private:
 	MyOverlapped		m_olp;
 	Ptr					m_self;
 	SpinLock			m_lock;
+	ALIGN MACHINE_INT	m_stop;
+	bool				m_asyncIo;
+	bool				m_asyncWork;
 };
 
 class ListenForDevRandomClient : public ::std::enable_shared_from_this<ListenForDevRandomClient>, public IDevRandomServer
@@ -373,7 +433,7 @@ public:
 
 			// start listening again
 			if( !pPool->SubmitThreadpoolWork(m_work.get()) )
-				m_self.reset();
+				 m_self.reset();
 		}
 	}
 };

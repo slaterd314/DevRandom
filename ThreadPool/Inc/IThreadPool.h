@@ -53,6 +53,10 @@ public:
 	// virtual void WaitForThreadpoolIoCallbacks(class IClientConnection *pCn, BOOL bCancelPending)=0;
 	virtual bool SetThreadpoolWait(HANDLE h, PFILETIME pftTImeout, class IWait *wait)=0;
 	virtual bool CloseThreadpoolWait(class IWait *wait)=0;
+	virtual void WaitForThreadpoolWorkCallbacks(class IWork *work, BOOL bCancelPendingCallbacks)=0;
+	virtual void WaitForThreadpoolIoCallbacks(class IIoCompletion *pio, BOOL bCancelPendingCallbacks)=0;
+	virtual void WaitForThreadpoolWaitCallbacks(class IWait *wait, BOOL bCancelPendingCallbacks)=0;
+	virtual void WaitForThreadpoolTimerCallbacks(class ITimer *timer, BOOL bCancelPendingCallbacks)=0;
 
 	// Create a new Thread pool.
 	// with the given priority, minimum and maximum number of threads.
