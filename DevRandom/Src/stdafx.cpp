@@ -14,10 +14,12 @@
 
 void TRACE(LPCTSTR lpszFormat, ...)
 {
+	TCHAR buffer[2048];
 	va_list arg;
 	va_start(arg, lpszFormat);
-	_vftprintf_s(stderr, lpszFormat, arg);
+	_vsntprintf_s(buffer,_TRUNCATE, lpszFormat, arg);
 	va_end(arg);
+	//::OutputDebugString(buffer);
 }
 
 #endif // _DEBUG
