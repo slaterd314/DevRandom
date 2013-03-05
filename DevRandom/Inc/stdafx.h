@@ -49,6 +49,9 @@ void TRACE(LPCTSTR lpszFormat, ...);
 #define TRACE __noop
 
 #endif
+#ifdef _ftprintf_s
+#undef _ftprintf_s
+#endif
 
 #define _ftprintf_s __noop
 #define TRACE __noop

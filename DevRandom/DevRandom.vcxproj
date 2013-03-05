@@ -94,6 +94,7 @@
       <BrowseInformation>true</BrowseInformation>
       <EnablePREfast>true</EnablePREfast>
       <AdditionalIncludeDirectories>$(ProjectDir)Inc\;$(SolutionDir)ThreadPool\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MinimalRebuild>false</MinimalRebuild>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -111,8 +112,9 @@
       <WarningLevel>Level4</WarningLevel>
       <GenerateXMLDocumentationFiles>true</GenerateXMLDocumentationFiles>
       <BrowseInformation>true</BrowseInformation>
-      <EnablePREfast>true</EnablePREfast>
+      <EnablePREfast>false</EnablePREfast>
       <AdditionalIncludeDirectories>$(ProjectDir)Inc\;$(SolutionDir)ThreadPool\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MinimalRebuild>false</MinimalRebuild>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -132,6 +134,7 @@
       <WarningLevel>Level4</WarningLevel>
       <GenerateXMLDocumentationFiles>true</GenerateXMLDocumentationFiles>
       <AdditionalIncludeDirectories>$(ProjectDir)Inc\;$(SolutionDir)ThreadPool\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MinimalRebuild>false</MinimalRebuild>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -153,6 +156,7 @@
       <WarningLevel>Level4</WarningLevel>
       <GenerateXMLDocumentationFiles>true</GenerateXMLDocumentationFiles>
       <AdditionalIncludeDirectories>$(ProjectDir)Inc\;$(SolutionDir)ThreadPool\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MinimalRebuild>false</MinimalRebuild>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -165,6 +169,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Src\DevRandomClientConnection.cpp" />
+    <ClCompile Include="Src\ListenForDevRandomClient.cpp" />
     <ClCompile Include="Src\PipeClientConnection.cpp" />
     <ClCompile Include="Src\RandomDataPipeServer.cpp" />
     <ClCompile Include="Src\random_server_new.cpp" />
@@ -177,7 +183,10 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Inc\DevRandomClientConnection.h" />
     <ClInclude Include="Inc\IClientConnection.h" />
+    <ClInclude Include="Inc\ListenForDevRandomClient.h" />
+    <ClInclude Include="Inc\MyOverlapped.h" />
     <ClInclude Include="Inc\PipeClientConnection.h" />
     <ClInclude Include="Inc\RandomDataPipeServer.h" />
     <ClInclude Include="Inc\ServiceManager.h" />

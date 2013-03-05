@@ -5,51 +5,72 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
-    </Filter>
     <Filter Include="Resource Files">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Inc">
+      <UniqueIdentifier>{40107187-b565-4c9c-83ef-56565c2c0a06}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="IncI">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="IncI\stdafx.h">
+      <Filter>IncI</Filter>
+    </ClInclude>
     <ClInclude Include="Inc\GenericIoCompletion.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\GenericTimer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\GenericWait.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\GenericWork.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\IIoCompletion.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\IThreadPool.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\IThreadPoolItem.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\ITimer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\IWait.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\IWork.h">
-      <Filter>Header Files</Filter>
+      <Filter>Inc</Filter>
     </ClInclude>
     <ClInclude Include="Inc\SpinLock.h">
-      <Filter>Header Files</Filter>
+      <Filter>Inc</Filter>
     </ClInclude>
-    <ClInclude Include="IncI\stdafx.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Inc\GenericTimer.h">
+      <Filter>Inc</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\GenericWait.h">
+      <Filter>Inc</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\GenericWork.h">
+      <Filter>Inc</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\IIoCompletion.h">
+      <Filter>Inc</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\IThreadPool.h">
+      <Filter>Inc</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\IThreadPoolItem.h">
+      <Filter>Inc</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\ITimer.h">
+      <Filter>Inc</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\IWait.h">
+      <Filter>Inc</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\IWork.h">
+      <Filter>Inc</Filter>
+    </ClInclude>
+    <ClInclude Include="IncI\IThreadPoolItemImpl.h">
+      <Filter>IncI</Filter>
+    </ClInclude>
+    <ClInclude Include="IncI\IIoCompletionImpl.h">
+      <Filter>IncI</Filter>
+    </ClInclude>
+    <ClInclude Include="IncI\IWorkImpl.h">
+      <Filter>IncI</Filter>
+    </ClInclude>
+    <ClInclude Include="IncI\ITimerImpl.h">
+      <Filter>IncI</Filter>
+    </ClInclude>
+    <ClInclude Include="IncI\IWaitImpl.h">
+      <Filter>IncI</Filter>
+    </ClInclude>
+    <ClInclude Include="IncI\CThreadPool.h">
+      <Filter>IncI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
