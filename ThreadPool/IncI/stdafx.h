@@ -11,18 +11,12 @@
 
 
 #pragma warning( disable : 4995 )
-#include <cstdio>
-#include <cstring>
-#include <cwchar>
 #include <tchar.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <Strsafe.h>
 #include <intrin.h>
 #include <memory>
-#include <functional>
-
-#include <string>
 
 #if defined(_UNICODE) || defined(UNICODE)
 #define _tstring wstring
@@ -45,6 +39,24 @@ void TRACE(LPCTSTR lpszFormat, ...);
 
 #endif
 
+#pragma warning( disable : 4995 )
+
+#include <cstdio>
+#include <cstring>
+#include <cwchar>
+
+#include <hash_map>
+#include <functional>
+#include <hash_set>
+#include <algorithm>
+#include <string>
+
+#pragma warning( default : 4995 )
+
+
 #define THREADPOOL_API __declspec(dllexport)
+
+#define _ftprintf_s __noop
+#define TRACE __noop
 
 #endif // __STDAFX_H__

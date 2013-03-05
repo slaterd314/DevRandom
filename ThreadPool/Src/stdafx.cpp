@@ -8,6 +8,11 @@
 
 #include <cstdarg>
 
+#ifdef TRACE
+#undef TRACE
+#endif
+
+
 void TRACE(LPCTSTR lpszFormat, ...)
 {
 	va_list arg;

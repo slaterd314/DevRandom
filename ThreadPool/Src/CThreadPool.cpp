@@ -277,20 +277,24 @@ class CThreadPool : public IThreadPool
 {
 	TP_CALLBACK_ENVIRON m_env;
 	unsigned __int32	m_bEnabled;
-	::std::hash_set<IThreadPoolItem *> m_items;
+	::std::unique_ptr<::std::hash_set<IThreadPoolItem *> > m_items;
 	SpinLock		m_lock;
 public:
 	void insertItem(IThreadPoolItem *pItem)
 	{
 		// protect access to the hash table
 		m_lock.acquire();
-		m_items.insert(pItem);
+		if( !m_items )
+			m_items.reset(new ::std::hash_set<IThreadPoolItem *>);
+		m_items->insert(pItem);
 		m_lock.release();
 	}
 	void removeItem(IThreadPoolItem *pItem)
 	{
 		m_lock.acquire();
-		m_items.erase(pItem);
+		m_items->erase(pItem);
+		if( m_items->size() == 0 )
+			m_items.reset();
 		m_lock.release();
 	}
 private:

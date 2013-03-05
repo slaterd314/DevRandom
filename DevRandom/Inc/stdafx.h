@@ -50,4 +50,7 @@ void TRACE(LPCTSTR lpszFormat, ...);
 
 #endif
 
+#define _ftprintf_s __noop
+#define TRACE __noop
+
 #endif // __STDAFX_H__

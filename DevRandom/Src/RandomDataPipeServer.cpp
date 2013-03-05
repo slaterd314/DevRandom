@@ -10,7 +10,6 @@
 
 #endif
 
-
 struct MyOverlapped : public OVERLAPPED, public ::std::enable_shared_from_this<MyOverlapped>
 {
 	enum { BUFSIZE=256 };
@@ -94,7 +93,7 @@ class DevRandomClientConnection : public ::std::enable_shared_from_this<DevRando
 public:
 	typedef ::std::shared_ptr<class DevRandomClientConnection> Ptr;
 
-	DevRandomClientConnection(const IIoCompletionPtr &pio, HANDLE hPipe, const MyOverlapped &olp, HANDLE hStopEvent, IThreadPool *pPool) :
+	DevRandomClientConnection(const IIoCompletionPtr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool) :
 		m_pio(pio),
 		m_hPipe(hPipe),
 		m_olp(olp),
@@ -103,6 +102,7 @@ public:
 		m_asyncIo(false),
 		m_asyncWork(false)
 	{
+		TRACE(TEXT(">>>DevRandomClientConnection::DevRandomClientConnection(), this=0x%x.\n"), this); 
 		m_work = pPool->newWork([&](PTP_CALLBACK_INSTANCE Instance, IWork *pWork) {
 			writeToClient(Instance, pWork);
 		});
@@ -122,8 +122,8 @@ public:
 				pPool->SetThreadpoolWait(hStopEvent,NULL,m_wait.get());
 			}
 		}
-		m_olp.buffer = m_olp.buffer1;
-		RtlGenRandom(m_olp.buffer, MyOverlapped::BUFSIZE);
+		m_olp->buffer = m_olp->buffer1;
+		RtlGenRandom(m_olp->buffer, MyOverlapped::BUFSIZE);
 
 	}
 
@@ -132,7 +132,7 @@ public:
 		m_self = this->shared_from_this();	// self-reference - we live in the thread pool 
 	}
 public:
-	static Ptr create(const IIoCompletionPtr &pio, HANDLE hPipe, const MyOverlapped &olp, HANDLE hStopEvent, IThreadPool *pPool)
+	static Ptr create(const IIoCompletionPtr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool)
 	{
 		return ::std::make_shared<DevRandomClientConnection>(pio, hPipe, olp, hStopEvent, pPool);
 	}
@@ -161,9 +161,9 @@ public:
 		DWORD cbReplyBytes = MyOverlapped::BUFSIZE;
 		DWORD cbWritten = 0;
 
-		unsigned __int8 *pWritePtr = m_olp.buffer;
-		m_olp.swapBuffers();
-		unsigned __int8 *pGeneratePtr = m_olp.buffer;
+		unsigned __int8 *pWritePtr = m_olp->buffer;
+		m_olp->swapBuffers();
+		unsigned __int8 *pGeneratePtr = m_olp->buffer;
 
 		if( m_pio.get() )
 		{
@@ -175,7 +175,7 @@ public:
 						pWritePtr,     // buffer to write from 
 						cbReplyBytes, // number of bytes to write 
 						&cbWritten,   // number of bytes written 
-						&m_olp);        // overlapped I/O 
+						m_olp.get());        // overlapped I/O 
 
 			if(!fSuccess)
 				fSuccess = checkWriteFileError();
@@ -269,46 +269,59 @@ public:
 		if( INVALID_HANDLE_VALUE != m_hPipe )
 			CloseHandle(m_hPipe);
 		m_hPipe = INVALID_HANDLE_VALUE;
+		TRACE(TEXT("<<<DevRandomClientConnection::~DevRandomClientConnection(), this=0x%x.\n"), this); 
 	}
 
-
-	void Stop(StopCaller caller)
+	void doStop(PTP_CALLBACK_INSTANCE Instance, IWork * pWork)
 	{
 		if( interlockedCompareExchange(&m_stop, 1, 0) == 0 )
 		{
-			IThreadPool *pPool = m_pio ? m_pio->pool() : (m_work ? m_work->pool() : NULL) ;
-			if( pPool && pPool->Enabled() )
+			::CallbackMayRunLong(Instance);
+			IThreadPool *pPool = pWork ? pWork->pool() : NULL;
+			if( pPool )
 			{
 				if( INVALID_HANDLE_VALUE != m_hPipe )
 				{
 					//HANDLE h = InterlockedExchangePointer(&m_hPipe, INVALID_HANDLE_VALUE);
-					//CancelIoEx(h, &m_olp);
-					if( caller != IO_CALL &&  m_pio && m_asyncIo)
+					CloseHandle(m_hPipe);
+					m_hPipe = INVALID_HANDLE_VALUE;
+					if( m_pio && m_asyncIo)
 					{
-						pPool->WaitForThreadpoolIoCallbacks(m_pio.get(), FALSE);
+						pPool->WaitForThreadpoolIoCallbacks(m_pio.get(), TRUE);
 						//pPool->CloseThreadpoolIo(m_pio.get());
 					}
 				}
-				if( caller != WORK_CALL && m_work && m_asyncWork)
-					pPool->WaitForThreadpoolWorkCallbacks(m_work.get(), FALSE);
-
-				if( caller != WAIT_CALL &&  m_wait )
-				{
-					pPool->WaitForThreadpoolWaitCallbacks(m_wait.get(),FALSE);
-					//pPool->CloseThreadpoolWait(m_wait.get());
-				}				
+				if( m_work && m_asyncWork)
+					pPool->WaitForThreadpoolWorkCallbacks(m_work.get(), TRUE);
+				pPool->CloseThreadpoolWork(pWork);
 			}
 			m_self.reset();
+		}
+	}
+
+	void Stop(StopCaller /*caller*/)
+	{
+		IThreadPool *pPool = (m_work ? m_work->pool() : (m_pio ? m_pio->pool() : NULL));
+		if( pPool )
+		{
+			m_workStop = pPool->newWork([&](PTP_CALLBACK_INSTANCE Instance, IWork * pWork) {
+				doStop(Instance, pWork);
+			});
+			if( m_workStop )
+			{
+				pPool->SubmitThreadpoolWork(m_workStop.get());
+			}
 		}
 	}
 
 
 private:
 	IWorkPtr			m_work;
+	IWorkPtr			m_workStop;
 	IWaitPtr			m_wait;
 	IIoCompletionPtr	m_pio;
 	HANDLE				m_hPipe;
-	MyOverlapped		m_olp;
+	MyOverlappedPtr		m_olp;
 	Ptr					m_self;
 	SpinLock			m_lock;
 	ALIGN MACHINE_INT	m_stop;
@@ -324,7 +337,7 @@ private:
 	IWorkPtr			m_work;
 	IIoCompletionPtr	m_pio;
 	HANDLE				m_hPipe;
-	MyOverlapped		m_olp;
+	MyOverlappedPtr		m_olp;
 	::std::_tstring		m_pipeName;
 	Ptr					m_self;
 	HANDLE				m_hStopEvent;
@@ -332,11 +345,15 @@ public:
 	typedef ::std::shared_ptr<class ListenForDevRandomClient> Ptr;
 	ListenForDevRandomClient(LPCTSTR lpszPipeName, HANDLE hStopEvent, IThreadPool *pPool) : m_hPipe(INVALID_HANDLE_VALUE), m_pipeName(lpszPipeName), m_hStopEvent(hStopEvent)
 	{
+		TRACE(TEXT(">>>ListenForDevRandomClient::ListenForDevRandomClient(), this=0x%x.\n"), this); 
 		m_work = pPool->newWork([&](PTP_CALLBACK_INSTANCE Instance, IWork *pWork) {
 			listenForClient(Instance, pWork);
 		});
 	}
-
+	~ListenForDevRandomClient()
+	{
+		TRACE(TEXT("<<<ListenForDevRandomClient::~ListenForDevRandomClient(), this=0x%x.\n"), this); 
+	}
 	virtual bool runServer()
 	{
 		bool bRetVal = false;
@@ -366,74 +383,134 @@ public:
 
 	void listenForClient(PTP_CALLBACK_INSTANCE , IWork *pWork)
 	{
+		TRACE(TEXT(">>>ListenForDevRandomClient::listenForClient() enter\n")); 
 		if( pWork && pWork->pool() )
 		{
 			IThreadPool *pPool = pWork->pool();
 			
-
-			m_hPipe = CreateNamedPipe(m_pipeName.c_str(),
-							PIPE_ACCESS_OUTBOUND|FILE_FLAG_OVERLAPPED,
-							PIPE_TYPE_MESSAGE|PIPE_WAIT,
-							PIPE_UNLIMITED_INSTANCES,
-							MyOverlapped::BUFSIZE,
-							MyOverlapped::BUFSIZE,
-							0,
-							NULL);
+			if( INVALID_HANDLE_VALUE == m_hPipe )
+			{
+				m_hPipe = CreateNamedPipe(m_pipeName.c_str(),
+								PIPE_ACCESS_OUTBOUND|FILE_FLAG_OVERLAPPED,
+								PIPE_TYPE_MESSAGE|PIPE_WAIT,
+								PIPE_UNLIMITED_INSTANCES,
+								MyOverlapped::BUFSIZE,
+								MyOverlapped::BUFSIZE,
+								0,
+								NULL);
+			}
 			if( INVALID_HANDLE_VALUE == m_hPipe )
 			{
 				_ftprintf_s(stderr,TEXT("CreateNamedPipe failed, GLE=%d.\n"), GetLastError()); 
 			}
 			else
 			{
-				m_olp.reset();
+				m_olp.reset(new MyOverlapped);
 
-				if( RtlGenRandom(m_olp.buffer, MyOverlapped::BUFSIZE) )
-				{				
-			
-					m_pio = pPool->newIoCompletion(m_hPipe, [&](PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered, IIoCompletion *pIo){
-						onConnectClient(Instance, Overlapped, IoResult, nBytesTransfered, pIo);
-					});
+				m_olp->hEvent = ::CreateEvent(NULL,TRUE,FALSE,NULL);
+				if( m_olp->hEvent )
+				{
+					if( RtlGenRandom(m_olp->buffer, MyOverlapped::BUFSIZE) )
+					{		
+						m_pio = pPool->newIoCompletion(m_hPipe, [&](PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered, IIoCompletion *pIo){
+							onConnectClient(Instance, Overlapped, IoResult, nBytesTransfered, pIo);
+						});
 
-					pPool->StartThreadpoolIo(m_pio.get());
-			
-					BOOL fConnected = ConnectNamedPipe(m_hPipe, &m_olp);	// asynchronous ConnectNamedPipe() call - this call will return immediately
-																		// and the Io completion routine will be called when a client connects.
-					if( !fConnected )
-					{
-						if( GetLastError() == ERROR_IO_PENDING || GetLastError() == ERROR_PIPE_CONNECTED )
-							fConnected = TRUE;
+						if( pPool->StartThreadpoolIo(m_pio.get()) )
+						{
+							BOOL fConnected = ConnectNamedPipe(m_hPipe, m_olp.get());	// asynchronous ConnectNamedPipe() call - this call will return immediately
+																				// and the Io completion routine will be called when a client connects.
+							if( !fConnected )
+							{
+								if( GetLastError() == ERROR_IO_PENDING || GetLastError() == ERROR_PIPE_CONNECTED )
+									fConnected = TRUE;
+							}
+							if( !fConnected )
+							{
+								_ftprintf_s(stderr, TEXT("ConnectNamedPipe failed. GLE=%d\n"), GetLastError());
+								pPool->CancelThreadpoolIo(m_pio.get());	// prevent a memory leak if ConnectNamedPipe() fails.
+							}
+						}
+						else
+							_ftprintf_s(stderr, TEXT("StartThreadpoolIo failed. GLE=%d\n"), GetLastError());
 					}
-					if( !fConnected )
-					{
-						pPool->CancelThreadpoolIo(m_pio.get());	// prevent a memory leak if ConnectNamedPipe() fails.
-					}
+					else
+						_ftprintf_s(stderr, TEXT("RtlGenRandom failed. GLE=%d\n"), GetLastError());
 				}
+				else
+					_ftprintf_s(stderr, TEXT("CreateEvent failed. GLE=%d\n"), GetLastError());
 			}
 		}
+		TRACE(TEXT("<<<ListenForDevRandomClient::listenForClient() exit\n")); 
 	}
 
 
 	void onConnectClient(PTP_CALLBACK_INSTANCE , PVOID Overlapped, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo)
 	{
-		MyOverlapped *pOlp = reinterpret_cast<MyOverlapped *>(Overlapped);
-		if( pIo && (NO_ERROR == IoResult) && pOlp)
-		{		
-			IThreadPool *pPool = pIo->pool();
-			
-			DevRandomClientConnection::Ptr pClient = ::std::make_shared<DevRandomClientConnection>(m_pio,m_hPipe, m_olp, m_hStopEvent, pPool);
+		TRACE(TEXT(">>>ListenForDevRandomClient::onConnectClient() enter\n")); 
+		IThreadPool *pPool = NULL;
+		bool bReSubmit = false;
+		HANDLE hPipe = m_hPipe;
+		// re-create the named pipe immediately so another client conenction
+		// coming in will succeed and wait.
+		m_hPipe = CreateNamedPipe(m_pipeName.c_str(),
+						PIPE_ACCESS_OUTBOUND|FILE_FLAG_OVERLAPPED,
+						PIPE_TYPE_MESSAGE|PIPE_WAIT,
+						PIPE_UNLIMITED_INSTANCES,
+						MyOverlapped::BUFSIZE,
+						MyOverlapped::BUFSIZE,
+						0,
+						NULL);
+		if( INVALID_HANDLE_VALUE == m_hPipe )
+		{
+			_ftprintf_s(stderr,TEXT("CreateNamedPipe failed, GLE=%d.\n"), GetLastError()); 
+		}
 
-			if( pClient )
+		if( pIo )
+		{
+			pPool = pIo->pool();
+			if( pPool )
 			{
-				pClient->makeSelfReference();
-				pClient->runClient();
+				IIoCompletionPtr pio = ::std::static_pointer_cast<IIoCompletion>(pIo->shared_from_this());
+				MyOverlappedPtr olp(m_olp);
+				MyOverlapped *pOlp = reinterpret_cast<MyOverlapped *>(Overlapped);
+				bReSubmit = true;
+				if( pOlp )
+				{
+					if( NO_ERROR == IoResult)
+					{
+						DevRandomClientConnection::Ptr pClient = ::std::make_shared<DevRandomClientConnection>(pio,hPipe, olp, m_hStopEvent, pPool);
+
+						if( pClient )
+						{
+							pClient->makeSelfReference();
+							pClient->runClient();
+						}
+					}
+					else
+						_ftprintf_s(stderr, TEXT("ListenForDevRandomClient::onConnectClient IoResult == %d\n"), IoResult);
+
+				}
+				else
+					_ftprintf_s(stderr, TEXT("ListenForDevRandomClient::onConnectClient pOlp == NULL \n"));
 			}
+			else
+				_ftprintf_s(stderr, TEXT("ListenForDevRandomClient::onConnectClient pPool == NULL \n"));
+		}
+		else
+			_ftprintf_s(stderr, TEXT("ListenForDevRandomClient::onConnectClient pIo == NULL \n"));
 
-			m_pio.reset();
-			m_hPipe = INVALID_HANDLE_VALUE;
-
-			// start listening again
+		TRACE(TEXT(">>>ListenForDevRandomClient::onConnectClient() exit\n")); 
+		if( pPool && bReSubmit )
+		{
 			if( !pPool->SubmitThreadpoolWork(m_work.get()) )
-				 m_self.reset();
+			{
+				_ftprintf_s(stderr, TEXT("ListenForDevRandomClient::onConnectClient SubmitThreadpoolWork failed. GLE=%d\n"), GetLastError());
+				{
+					m_self.reset();
+					return;
+				}
+			}
 		}
 	}
 };
