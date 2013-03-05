@@ -10,6 +10,7 @@ struct IDevRandomServer
 	typedef ::std::shared_ptr<IDevRandomServer> Ptr;
 	virtual ~IDevRandomServer(){}
 	virtual bool runServer()=0;
+	virtual void waitForClientsToShutdown()=0;
 };	
 
 // IWorkPtr makePipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool);

@@ -34,7 +34,7 @@ int _tmain(int argc, TCHAR **argv)
 		{
 			int retVal = RunServer2();
 
-			_ftprintf_s(stdout, TEXT("Shutdown Complete. Press Enter to exit...\n> "));
+			_tprintf_s(TEXT("Shutdown Complete. Press Enter to exit...\n> "));
 			TCHAR buffer[32];
 			_getws_s(buffer);
 
@@ -81,7 +81,7 @@ int RunServer2()
 					{
 						WaitForCallbacks();
 						::SetEvent(hEvent);
-						Sleep(1000);
+						pServer->waitForClientsToShutdown();
 						CloseHandle(hEvent);
 					}
 				}

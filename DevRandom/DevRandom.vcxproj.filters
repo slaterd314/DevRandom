@@ -41,9 +41,6 @@
     <ClInclude Include="Inc\stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Inc\IClientConnection.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Inc\PipeClientConnection.h">
       <Filter>Header Files</Filter>
     </ClInclude>

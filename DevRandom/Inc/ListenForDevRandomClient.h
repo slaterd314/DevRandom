@@ -32,6 +32,7 @@ public:
 	bool startServer();
 	void listenForClient(PTP_CALLBACK_INSTANCE , IWork *pWork);
 	void onConnectClient(PTP_CALLBACK_INSTANCE , PVOID Overlapped, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo);
+	virtual void waitForClientsToShutdown();
 };
 
 #endif // __LISTENFORRANDOMCLIENT_H__

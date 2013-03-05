@@ -21,19 +21,7 @@
     <ClInclude Include="IncI\stdafx.h">
       <Filter>IncI</Filter>
     </ClInclude>
-    <ClInclude Include="Inc\GenericIoCompletion.h">
-      <Filter>Inc</Filter>
-    </ClInclude>
     <ClInclude Include="Inc\SpinLock.h">
-      <Filter>Inc</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\GenericTimer.h">
-      <Filter>Inc</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\GenericWait.h">
-      <Filter>Inc</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\GenericWork.h">
       <Filter>Inc</Filter>
     </ClInclude>
     <ClInclude Include="Inc\IIoCompletion.h">
@@ -70,6 +58,18 @@
       <Filter>IncI</Filter>
     </ClInclude>
     <ClInclude Include="IncI\CThreadPool.h">
+      <Filter>IncI</Filter>
+    </ClInclude>
+    <ClInclude Include="IncI\GenericIoCompletion.h">
+      <Filter>IncI</Filter>
+    </ClInclude>
+    <ClInclude Include="IncI\GenericTimer.h">
+      <Filter>IncI</Filter>
+    </ClInclude>
+    <ClInclude Include="IncI\GenericWait.h">
+      <Filter>IncI</Filter>
+    </ClInclude>
+    <ClInclude Include="IncI\GenericWork.h">
       <Filter>IncI</Filter>
     </ClInclude>
   </ItemGroup>

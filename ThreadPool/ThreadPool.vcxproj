@@ -152,16 +152,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="IncI\CThreadPool.h" />
+    <ClInclude Include="IncI\GenericIoCompletion.h" />
+    <ClInclude Include="IncI\GenericTimer.h" />
+    <ClInclude Include="IncI\GenericWait.h" />
+    <ClInclude Include="IncI\GenericWork.h" />
     <ClInclude Include="IncI\IIoCompletionImpl.h" />
     <ClInclude Include="IncI\IThreadPoolItemImpl.h" />
     <ClInclude Include="IncI\ITimerImpl.h" />
     <ClInclude Include="IncI\IWaitImpl.h" />
     <ClInclude Include="IncI\IWorkImpl.h" />
     <ClInclude Include="IncI\stdafx.h" />
-    <ClInclude Include="Inc\GenericIoCompletion.h" />
-    <ClInclude Include="Inc\GenericTimer.h" />
-    <ClInclude Include="Inc\GenericWait.h" />
-    <ClInclude Include="Inc\GenericWork.h" />
     <ClInclude Include="Inc\IIoCompletion.h" />
     <ClInclude Include="Inc\IThreadPool.h" />
     <ClInclude Include="Inc\IThreadPoolItem.h" />

@@ -184,7 +184,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Inc\DevRandomClientConnection.h" />
-    <ClInclude Include="Inc\IClientConnection.h" />
     <ClInclude Include="Inc\ListenForDevRandomClient.h" />
     <ClInclude Include="Inc\MyOverlapped.h" />
     <ClInclude Include="Inc\PipeClientConnection.h" />

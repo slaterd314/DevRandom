@@ -25,6 +25,12 @@ ListenForDevRandomClient::runServer()
 	return bRetVal;
 }
 
+void 
+ListenForDevRandomClient::waitForClientsToShutdown()
+{
+	DevRandomClientConnection::waitForClientsToStop();
+}
+
 void
 ListenForDevRandomClient::makeSelfReference()
 {
@@ -147,7 +153,7 @@ ListenForDevRandomClient::onConnectClient(PTP_CALLBACK_INSTANCE , PVOID Overlapp
 			{
 				if( NO_ERROR == IoResult)
 				{
-					DevRandomClientConnection::Ptr pClient = ::std::make_shared<DevRandomClientConnection>(pio,hPipe, olp, m_hStopEvent, pPool);
+					DevRandomClientConnection::Ptr pClient = DevRandomClientConnection::create(pio,hPipe, olp, m_hStopEvent, pPool);
 
 					if( pClient )
 					{

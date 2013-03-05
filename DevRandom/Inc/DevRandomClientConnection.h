@@ -28,7 +28,10 @@ public:
 	typedef ::std::shared_ptr<class DevRandomClientConnection> Ptr;
 
 	DevRandomClientConnection(const IIoCompletionPtr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool);
+	~DevRandomClientConnection();
 	void makeSelfReference();
+
+	static void waitForClientsToStop();
 
 public:
 	static Ptr create(const IIoCompletionPtr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool);
@@ -37,22 +40,22 @@ public:
 	void onWriteClientComplete(PTP_CALLBACK_INSTANCE , PVOID /*Overlapped*/, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo);
 	bool runClient();
 	void onWaitSignaled(PTP_CALLBACK_INSTANCE , TP_WAIT_RESULT /*WaitResult*/, IWait * /*pWait*/);
-	~DevRandomClientConnection();
 	void doStop(PTP_CALLBACK_INSTANCE Instance, IWork * pWork);
 	void Stop(StopCaller /*caller*/);
 
 private:
-	IWorkPtr			m_work;
-	IWorkPtr			m_workStop;
-	IWaitPtr			m_wait;
-	IIoCompletionPtr	m_pio;
-	HANDLE				m_hPipe;
-	MyOverlappedPtr		m_olp;
-	Ptr					m_self;
-	SpinLock			m_lock;
-	ALIGN MACHINE_INT	m_stop;
-	bool				m_asyncIo;
-	bool				m_asyncWork;
+	IWorkPtr							m_work;
+	IWorkPtr							m_workStop;
+	IWaitPtr							m_wait;
+	IIoCompletionPtr					m_pio;
+	HANDLE								m_hPipe;
+	MyOverlappedPtr						m_olp;
+	Ptr									m_self;
+	SpinLock							m_lock;
+	ALIGN MACHINE_INT					m_stop;
+	bool								m_asyncIo;
+	bool								m_asyncWork;
+	static volatile ALIGN MACHINE_INT	m_nActiveClients;
 };
 
 #endif // __DEVRANDOMCLIENTCONNECTION_H__

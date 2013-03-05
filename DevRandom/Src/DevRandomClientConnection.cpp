@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "DevRandomClientConnection.h"
 
+volatile ALIGN MACHINE_INT DevRandomClientConnection::m_nActiveClients = 0;
+
 DevRandomClientConnection::DevRandomClientConnection(const IIoCompletionPtr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool) :
 m_pio(pio),
 m_hPipe(hPipe),
@@ -10,6 +12,7 @@ m_stop(false),
 m_asyncIo(false),
 m_asyncWork(false)
 {
+	interlockedIncrement(&m_nActiveClients);
 	TRACE(TEXT(">>>DevRandomClientConnection::DevRandomClientConnection(), this=0x%x.\n"), this); 
 	m_work = pPool->newWork([&](PTP_CALLBACK_INSTANCE Instance, IWork *pWork) {
 		writeToClient(Instance, pWork);
@@ -32,7 +35,46 @@ m_asyncWork(false)
 	}
 	m_olp->buffer = m_olp->buffer1;
 	RtlGenRandom(m_olp->buffer, MyOverlapped::BUFSIZE);
+}
 
+DevRandomClientConnection::~DevRandomClientConnection()
+{
+	//lock locked(m_lock);
+	IThreadPool *pPool = m_pio ? m_pio->pool() : (m_work ? m_work->pool() : NULL) ;
+	if( pPool && pPool->Enabled() )
+	{
+		if( m_work)
+		{
+			//::WaitForThreadpoolWorkCallbacks(m_work->handle(), TRUE);
+			pPool->CloseThreadpoolWork(m_work.get());
+		}
+		if( m_pio )
+		{
+			//::WaitForThreadpoolIoCallbacks(m_pio->handle(), FALSE);
+			pPool->CloseThreadpoolIo(m_pio.get());
+		}
+		if( m_wait )
+		{
+			//::WaitForThreadpoolWaitCallbacks(m_wait->handle(),TRUE);
+			pPool->CloseThreadpoolWait(m_wait.get());
+		}				
+	}
+
+	if( INVALID_HANDLE_VALUE != m_hPipe )
+		CloseHandle(m_hPipe);
+	m_hPipe = INVALID_HANDLE_VALUE;
+	TRACE(TEXT("<<<DevRandomClientConnection::~DevRandomClientConnection(), this=0x%x.\n"), this); 
+	interlockedDecrement(&m_nActiveClients);
+}
+
+// static
+void
+DevRandomClientConnection::waitForClientsToStop()
+{
+	while(m_nActiveClients>0)
+	{
+		Sleep(1);
+	}
 }
 
 void
@@ -157,35 +199,6 @@ DevRandomClientConnection::onWaitSignaled(PTP_CALLBACK_INSTANCE , TP_WAIT_RESULT
 	//	m_wait.reset();
 	//m_self.reset();
 	Stop(WAIT_CALL);// 
-}
-
-DevRandomClientConnection::~DevRandomClientConnection()
-{
-	//lock locked(m_lock);
-	IThreadPool *pPool = m_pio ? m_pio->pool() : (m_work ? m_work->pool() : NULL) ;
-	if( pPool && pPool->Enabled() )
-	{
-		if( m_work)
-		{
-			//::WaitForThreadpoolWorkCallbacks(m_work->handle(), TRUE);
-			pPool->CloseThreadpoolWork(m_work.get());
-		}
-		if( m_pio )
-		{
-			//::WaitForThreadpoolIoCallbacks(m_pio->handle(), FALSE);
-			pPool->CloseThreadpoolIo(m_pio.get());
-		}
-		if( m_wait )
-		{
-			//::WaitForThreadpoolWaitCallbacks(m_wait->handle(),TRUE);
-			pPool->CloseThreadpoolWait(m_wait.get());
-		}				
-	}
-
-	if( INVALID_HANDLE_VALUE != m_hPipe )
-		CloseHandle(m_hPipe);
-	m_hPipe = INVALID_HANDLE_VALUE;
-	TRACE(TEXT("<<<DevRandomClientConnection::~DevRandomClientConnection(), this=0x%x.\n"), this); 
 }
 
 void
