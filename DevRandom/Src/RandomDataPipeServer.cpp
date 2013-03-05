@@ -14,12 +14,14 @@
 #endif
 
 
-IDevRandomServer::Ptr createPipeServer(LPCTSTR lpszPipeName, HANDLE hStopEvent, IThreadPool *pPool)
+IDevRandomServer::Ptr createPipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool)
 {
 	IDevRandomServer::Ptr pServer;
 	if( pPool )
 	{
-		pServer = ListenForDevRandomClient::create(lpszPipeName, hStopEvent, pPool);
+		HANDLE hStopEvent = ::CreateEvent(NULL,TRUE,FALSE,NULL);
+		if( hStopEvent )
+			pServer = ListenForDevRandomClient::create(lpszPipeName, hStopEvent, pPool);
 	}
 	return pServer;
 }

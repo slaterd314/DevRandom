@@ -24,6 +24,10 @@ class DevRandomClientConnection : public ::std::enable_shared_from_this<DevRando
 	private:
 		lock &operator=(const lock &) { return *this; }
 	};
+private:
+	// copy & assignment not allowed.
+	DevRandomClientConnection(const DevRandomClientConnection &other);
+	DevRandomClientConnection &operator=(const DevRandomClientConnection &other);
 public:
 	typedef ::std::shared_ptr<class DevRandomClientConnection> Ptr;
 
@@ -56,6 +60,7 @@ private:
 	bool								m_asyncIo;
 	bool								m_asyncWork;
 	static volatile ALIGN MACHINE_INT	m_nActiveClients;
+	SRWLOCK								m_SRWLock;
 };
 
 #endif // __DEVRANDOMCLIENTCONNECTION_H__

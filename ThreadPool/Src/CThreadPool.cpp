@@ -88,9 +88,9 @@ CThreadPool::CloseThreadpoolWork(class IWork *work)
 	if( bRetVal )
 	{
 		::CloseThreadpoolWork(work->handle());
-		IWorkImplPrivate *ptr = dynamic_cast<IWorkImplPrivate *>(work);
-		if( ptr )
-			ptr->setPtp(NULL);
+		//IWorkImplPrivate *ptr = dynamic_cast<IWorkImplPrivate *>(work);
+		//if( ptr )
+		//	ptr->setPtp(NULL);
 	}
 
 	return bRetVal;
@@ -249,6 +249,16 @@ CThreadPool::~CThreadPool()
 {
 	InterlockedCompareExchange(&m_bEnabled,FALSE,TRUE);
 
+#ifdef _DEBUG
+	if( m_items && m_items->size() > 0 )
+	{
+		TRACE(TEXT("m_items not empty. Dumping\n"));
+		::std::for_each(m_items->begin(), m_items->end(), [&](const IThreadPoolItem *pItem) {
+			TRACE(TEXT("item: %S\n"), typeid(*pItem).name());
+		});
+	}
+#endif // _DEBUG
+
 	if( env()->CleanupGroup )
 	{
 		CloseThreadpoolCleanupGroupMembers(env()->CleanupGroup, TRUE, NULL);
@@ -272,7 +282,11 @@ CThreadPool::env()
 IWorkPtr
 CThreadPool::newWork(const IWork::FuncPtr &f)
 {
+#ifdef _DEBUG
+	::std::shared_ptr<IWorkImpl<IThreadPoolItemImpl<GenericWork> > >  ptr(new IWorkImpl<IThreadPoolItemImpl<GenericWork> >);
+#else
 	::std::shared_ptr<IWorkImpl<IThreadPoolItemImpl<GenericWork> > >  ptr = ::std::make_shared<IWorkImpl<IThreadPoolItemImpl<GenericWork> > >();
+#endif
 	if( ptr )
 	{
 		ptr->setPool(this);
@@ -285,7 +299,11 @@ CThreadPool::newWork(const IWork::FuncPtr &f)
 IWaitPtr
 CThreadPool::newWait(const IWait::FuncPtr &f)
 {
+#ifdef _DEBUG
+	::std::shared_ptr<IWaitImpl<IThreadPoolItemImpl<GenericWait> > >  ptr(new IWaitImpl<IThreadPoolItemImpl<GenericWait> >);
+#else
 	::std::shared_ptr<IWaitImpl<IThreadPoolItemImpl<GenericWait> > >  ptr = ::std::make_shared<IWaitImpl<IThreadPoolItemImpl<GenericWait> > >();
+#endif
 	if( ptr )
 	{
 		ptr->setPool(this);
@@ -298,7 +316,11 @@ CThreadPool::newWait(const IWait::FuncPtr &f)
 ITimerPtr
 CThreadPool::newTimer(const ITimer::FuncPtr &f)
 {
+#ifdef _DEBUG
+	::std::shared_ptr<ITimerImpl<IThreadPoolItemImpl<GenericTimer> > >  ptr(new ITimerImpl<IThreadPoolItemImpl<GenericTimer> >);
+#else
 	::std::shared_ptr<ITimerImpl<IThreadPoolItemImpl<GenericTimer> > >  ptr = ::std::make_shared<ITimerImpl<IThreadPoolItemImpl<GenericTimer> > >();
+#endif
 	if( ptr )
 	{
 		ptr->setPool(this);
@@ -312,7 +334,11 @@ CThreadPool::newTimer(const ITimer::FuncPtr &f)
 IIoCompletionPtr
 CThreadPool::newIoCompletion(HANDLE hIoObject, const IIoCompletion::FuncPtr &f)
 {
+#ifdef _DEBUG
+	::std::shared_ptr<IIoCompletionImpl<IThreadPoolItemImpl<GenericIoCompletion> > >  ptr(new IIoCompletionImpl<IThreadPoolItemImpl<GenericIoCompletion> >);
+#else
 	::std::shared_ptr<IIoCompletionImpl<IThreadPoolItemImpl<GenericIoCompletion> > >  ptr = ::std::make_shared<IIoCompletionImpl<IThreadPoolItemImpl<GenericIoCompletion> > >();
+#endif
 	if( ptr )
 	{
 		ptr->setPool(this);
@@ -458,13 +484,20 @@ template<class C>
 void
 IThreadPoolItemImpl<C>::setPool(IThreadPool *p)
 {
-	static_cast<CThreadPool *>(p)->insertItem(this);
-	m_pool = p;
+	if( m_pool == NULL )
+	{
+		static_cast<CThreadPool *>(p)->insertItem(this);
+		m_pool = p;
+	}
 }
 
 THREADPOOL_API
 ::std::shared_ptr<IThreadPool>
 IThreadPool::newPool(const IThreadPool::Priority priority, const DWORD dwMinThreads, const DWORD dwMaxThreads)
 {
+#ifdef _DEBUG
+	return ::std::static_pointer_cast<IThreadPool>(::std::shared_ptr<CThreadPool>(new CThreadPool(priority, dwMinThreads, dwMaxThreads)));
+#else
 	return ::std::static_pointer_cast<IThreadPool>(::std::make_shared<CThreadPool>(priority, dwMinThreads, dwMaxThreads));
+#endif
 }

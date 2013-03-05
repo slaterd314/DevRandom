@@ -54,7 +54,7 @@ static void WaitForCallbacks()
 	TCHAR buf[32] = {0};
 	for(;;)
 	{
-		_ftprintf_s(stdout, TEXT("Enter \"quit\" to exit\n> "));
+		_tprintf_s(TEXT("Enter \"quit\" to exit\n> "));
 		LPCTSTR lpsz = _getws_s(buf);
 		if( 0 == _tcsicmp(lpsz, TEXT("quit")) )
 			break;
@@ -67,27 +67,21 @@ int RunServer2()
 	IThreadPoolPtr pPool = IThreadPool::newPool(IThreadPool::NORMAL,0,0);
 	if( pPool )
 	{
-		HANDLE hEvent = ::CreateEvent(NULL,TRUE,FALSE,NULL);
-		if( hEvent )
+		_CrtMemState state;
+		UNREFERENCED_PARAMETER(state);
+		_CrtMemCheckpoint(&state);
 		{
-			_CrtMemState state;
-			UNREFERENCED_PARAMETER(state);
-			_CrtMemCheckpoint(&state);
+			IDevRandomServer::Ptr pServer = createPipeServer(TEXT("\\\\.\\pipe\\random"), pPool.get());
+			if( pServer )
 			{
-				IDevRandomServer::Ptr pServer = createPipeServer(TEXT("\\\\.\\pipe\\random"), hEvent, pPool.get());
-				if( pServer )
+				if( pServer->runServer() )
 				{
-					if( pServer->runServer() )
-					{
-						WaitForCallbacks();
-						::SetEvent(hEvent);
-						pServer->waitForClientsToShutdown();
-						CloseHandle(hEvent);
-					}
+					WaitForCallbacks();
+					pServer->shutDownServer();
 				}
 			}
-			_CrtMemDumpAllObjectsSince(&state);
 		}
+		_CrtMemDumpAllObjectsSince(&state);
 	}	
 	
 	return 0;

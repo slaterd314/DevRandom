@@ -22,6 +22,7 @@ private:
 	::std::_tstring		m_pipeName;
 	Ptr					m_self;
 	HANDLE				m_hStopEvent;
+	bool				m_stop;
 public:
 	typedef ::std::shared_ptr<class ListenForDevRandomClient> Ptr;
 	ListenForDevRandomClient(LPCTSTR lpszPipeName, HANDLE hStopEvent, IThreadPool *pPool);
@@ -32,7 +33,7 @@ public:
 	bool startServer();
 	void listenForClient(PTP_CALLBACK_INSTANCE , IWork *pWork);
 	void onConnectClient(PTP_CALLBACK_INSTANCE , PVOID Overlapped, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo);
-	virtual void waitForClientsToShutdown();
+	virtual void shutDownServer();
 };
 
 #endif // __LISTENFORRANDOMCLIENT_H__

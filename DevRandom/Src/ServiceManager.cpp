@@ -19,7 +19,6 @@ SERVICE_STATUS          ServiceManager::gSvcStatus;
 SERVICE_STATUS_HANDLE   ServiceManager::gSvcStatusHandle = NULL;
 IThreadPoolPtr			ServiceManager::pPool;
 IDevRandomServer::Ptr	ServiceManager::m_Server;
-HANDLE					ServiceManager::m_hEvent=NULL;
 
 // static
 VOID
@@ -95,10 +94,8 @@ ServiceManager::HandlerEx(__in  DWORD dwControl, __in  DWORD /*dwEventType*/, __
 	{
 		case SERVICE_CONTROL_STOP:
 			ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 0);
-			::SetEvent(m_hEvent);
-			// pPool->Shutdown();
+			m_Server->shutDownServer();
 			m_Server.reset();
-			CloseHandle(m_hEvent);
 			ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
 			break;
 		case SERVICE_CONTROL_INTERROGATE:
@@ -143,19 +140,13 @@ ServiceManager::SvcInit( DWORD, LPTSTR * )
 {
 	if( pPool )
 	{
-		m_hEvent = ::CreateEvent(NULL,TRUE,FALSE,NULL);
-		if( m_hEvent )
+		m_Server = createPipeServer(TEXT("\\\\.\\pipe\\random"), pPool.get());
+		if( m_Server && m_Server->runServer() )
 		{
-			m_Server = createPipeServer(TEXT("\\\\.\\pipe\\random"), m_hEvent, pPool.get());
-			if( m_Server && m_Server->runServer() )
-			{
-				ReportSvcStatus( SERVICE_RUNNING, NO_ERROR, 0 );
-			}
-			else
-				ReportSvcStatus( SERVICE_STOPPED, ERROR_SERVICE_SPECIFIC_ERROR, 0 );
+			ReportSvcStatus( SERVICE_RUNNING, NO_ERROR, 0 );
 		}
 		else
-			ReportSvcStatus( SERVICE_STOPPED, ERROR_INVALID_HANDLE, 0 );
+			ReportSvcStatus( SERVICE_STOPPED, ERROR_SERVICE_SPECIFIC_ERROR, 0 );
 	}
 	else
 		ReportSvcStatus( SERVICE_STOPPED, ERROR_NOT_ENOUGH_MEMORY, 0 );

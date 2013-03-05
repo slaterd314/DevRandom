@@ -10,7 +10,7 @@ public:
 };
 
 template <class C>
-class IWorkImpl : public C, public IWorkImplPrivate
+class IWorkImpl : public C // , public IWorkImplPrivate
 {
 	PTP_WORK m_ptpWork;
 public:

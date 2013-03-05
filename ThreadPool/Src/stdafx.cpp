@@ -20,7 +20,7 @@ void TRACE(LPCTSTR lpszFormat, ...)
 	va_start(arg, lpszFormat);
 	_vsntprintf_s(buffer,_TRUNCATE, lpszFormat, arg);
 	va_end(arg);
-	//::OutputDebugString(buffer);
+	::OutputDebugString(buffer);
 }
 
 #endif // _DEBUG

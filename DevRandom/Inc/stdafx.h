@@ -9,6 +9,10 @@
 #include <crtdbg.h>
 #include <new>
 
+#ifdef _DEBUG
+#define new DEBUG_NEW
+
+#endif
 
 
 #define SystemFunction036 NTAPI SystemFunction036
@@ -49,11 +53,11 @@ void TRACE(LPCTSTR lpszFormat, ...);
 #define TRACE __noop
 
 #endif
-#ifdef _ftprintf_s
-#undef _ftprintf_s
-#endif
+//#ifdef _ftprintf_s
+//#undef _ftprintf_s
+//#endif
 
-#define _ftprintf_s __noop
-#define TRACE __noop
+// #define _ftprintf_s __noop
+//#define TRACE __noop
 
 #endif // __STDAFX_H__
