@@ -77,28 +77,106 @@ public:
 	}
 };
 
-class
-ALIGN
-SpinWait : public SpinLock
+class LWSpinLock
+{
+#ifdef _DEBUG
+public:
+	static int &MaxIter() {
+		static int n=0;
+		return n;
+	}
+private:
+#endif
+	enum {
+		MAXITER=10000
+	};
+public:
+	LWSpinLock() : m_n(0)
+	{
+	}
+	~LWSpinLock()
+	{
+	}
+	bool tryLock()
+	{
+		const ALIGN MACHINE_INT test = 0;
+		const ALIGN MACHINE_INT newVal = GetCurrentThreadId();
+		return ( interlockedCompareExchange(&m_n, newVal, test) == test);
+	}
+	void lock()
+	{
+		const ALIGN MACHINE_INT test = 0;
+		const ALIGN MACHINE_INT newVal = GetCurrentThreadId();
+		if( m_n != newVal )	// re-entrant safe
+		{
+			for(int i=0;i<MAXITER;++i)
+			{
+				if(tryLock())
+				{
+#ifdef _DEBUG
+					MaxIter() = ::std::max(MaxIter(),i);
+#endif // _DEBUG
+					break;
+				}
+				else do YieldProcessor();
+					while(m_n != test);
+			}
+			if( m_n != newVal )
+				throw ::std::runtime_error("Unexpected Spin-Wait deadlock detected");
+
+		}
+	}
+	void unlock()
+	{
+		const ALIGN MACHINE_INT tid = GetCurrentThreadId();
+		const ALIGN MACHINE_INT newVal = 0;
+		if( m_n != tid )
+			throw ::std::runtime_error("Unexpected thread-id in release");
+		interlockedCompareExchange(&m_n, newVal, tid);
+	}
+private:
+	LWSpinLock(const LWSpinLock &);
+	LWSpinLock &operator=(const LWSpinLock &);
+	volatile ALIGN MACHINE_INT m_n;
+};
+
+class LWSpinLocker
 {
 public:
-	SpinWait(bool bInitialLock) : SpinLock(bInitialLock){}
-	__forceinline void inc()
+	LWSpinLocker(LWSpinLock &lock) : m_lock(lock)
 	{
-		interlockedIncrement(&m_n);
+		m_lock.lock();
 	}
-	__forceinline void dec()
+	~LWSpinLocker()
 	{
-		interlockedDecrement(&m_n);
+		m_lock.unlock();
 	}
-	__forceinline void acquire()
-	{
-		ChangeIf(0,-1);
-	}
-	__forceinline void release()
-	{
-		ChangeIf(-1,0);
-	}
+private:
+	LWSpinLocker(const LWSpinLocker &);
+	LWSpinLocker &operator=(const LWSpinLocker &);
+private:
+	LWSpinLock &m_lock;
 };
+
+class LWTrySpinLocker
+{
+public:
+	LWTrySpinLocker(LWSpinLock &lock) : m_lock(lock), m_bLocked(lock.tryLock())
+	{
+	}
+	~LWTrySpinLocker()
+	{
+		if( locked() )
+			m_lock.unlock();
+	}
+	bool locked()const { return m_bLocked; }
+private:
+	LWTrySpinLocker(const LWTrySpinLocker &);
+	LWTrySpinLocker &operator=(const LWTrySpinLocker &);
+private:
+	LWSpinLock &m_lock;
+	const bool	m_bLocked;
+};
+
 
 #endif // __SPINWAIT_H__

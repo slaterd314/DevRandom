@@ -46,19 +46,23 @@ public:
 	void onWaitSignaled(PTP_CALLBACK_INSTANCE , TP_WAIT_RESULT /*WaitResult*/, IWait * /*pWait*/);
 	void doStop(PTP_CALLBACK_INSTANCE Instance, IWork * pWork);
 	void Stop(StopCaller /*caller*/);
-
+private:
+	bool WriteData(const unsigned __int8 *pData, const DWORD &dwDataLength);
+	void closeHandle();
 private:
 	IWorkPtr							m_work;
 	IWorkPtr							m_workStop;
 	IWaitPtr							m_wait;
 	IIoCompletionPtr					m_pio;
-	HANDLE								m_hPipe;
 	MyOverlappedPtr						m_olp;
 	Ptr									m_self;
-	SpinLock							m_lock;
+	LWSpinLock							m_lock;
+	HANDLE								m_hPipe;
 	ALIGN MACHINE_INT					m_stop;
+	ALIGN MACHINE_INT					m_nOutStandingIoOps;	
 	bool								m_asyncIo;
 	bool								m_asyncWork;
+	
 	static volatile ALIGN MACHINE_INT	m_nActiveClients;
 	SRWLOCK								m_SRWLock;
 };

@@ -68,7 +68,7 @@ private:
 	TP_CALLBACK_ENVIRON m_env;
 	unsigned __int32	m_bEnabled;
 	::std::unique_ptr<::std::hash_set<IThreadPoolItem *> > m_items;
-	SpinLock		m_lock;
+	LWSpinLock		m_lock;
 };
 
 #endif // __CTHREADPOOL_H__

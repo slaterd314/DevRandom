@@ -55,10 +55,10 @@ DevRandomClientConnection::DevRandomClientConnection(const IIoCompletionPtr &pio
 m_pio(pio),
 m_hPipe(hPipe),
 m_olp(olp),
-m_lock(false),
 m_asyncIo(false),
 m_asyncWork(false),
-m_stop(false)
+m_stop(false),
+m_nOutStandingIoOps(0)
 {
 	InitializeSRWLock(&m_SRWLock);
 	interlockedIncrement(&m_nActiveClients);
@@ -110,8 +110,35 @@ DevRandomClientConnection::~DevRandomClientConnection()
 		}				
 	}
 
-	m_work->setWork(NULL);
-	m_pio->setIoComplete(NULL);
+	if( m_work )
+	{
+		m_work->setWork(NULL);
+		m_work.reset();
+	}
+	if( m_workStop )
+	{
+		m_workStop->setWork(NULL);
+		m_workStop.reset();
+	}
+	if( m_pio )
+	{
+		m_pio->setIoComplete(NULL);
+		m_pio.reset();
+	}
+	if( m_wait )
+	{
+		m_wait->setWait(NULL);
+		m_wait.reset();
+	}
+	if( m_olp )
+	{
+		if( m_olp->hEvent )
+		{
+			CloseHandle(m_olp->hEvent);
+			m_olp->hEvent = NULL;
+		}
+		m_olp.reset();
+	}
 
 	if( INVALID_HANDLE_VALUE != m_hPipe )
 		CloseHandle(m_hPipe);
@@ -163,14 +190,79 @@ DevRandomClientConnection::checkWriteFileError()
 }
 
 void
+DevRandomClientConnection::closeHandle()
+{
+	ExclusiveLock lock(&m_SRWLock);
+	if( m_hPipe != INVALID_HANDLE_VALUE )
+	{
+		CloseHandle(m_hPipe);
+		m_hPipe = INVALID_HANDLE_VALUE;
+	}
+}
+
+bool
+DevRandomClientConnection::WriteData(const unsigned __int8 *pData, const DWORD &dwDataLength)
+{
+	bool bRetVal = false;
+	SharedLock lock(&m_SRWLock);
+	if( lock.locked() )
+	{
+		if( m_hPipe != INVALID_HANDLE_VALUE )
+		{
+			if( m_pio.get() )
+			{
+				bRetVal = m_pio->pool()->StartThreadpoolIo(m_pio.get());
+				if( bRetVal )
+				{
+					m_asyncIo = true;
+					DWORD cbWritten = 0;
+					BOOL fSuccess = WriteFile( 
+								m_hPipe,        // handle to pipe 
+								pData,     // buffer to write from 
+								dwDataLength, // number of bytes to write 
+								&cbWritten,   // number of bytes written 
+								m_olp.get());        // overlapped I/O 
+					if(!fSuccess)
+						fSuccess = checkWriteFileError();
+					if( !fSuccess )
+					{
+						bRetVal = false;
+						m_asyncIo = false;
+						_ftprintf_s(stderr,TEXT("WriteFile() failed, GLE=%d.\n"), GetLastError());
+						m_pio->pool()->CancelThreadpoolIo(m_pio.get());
+					}
+				}
+				else
+				{
+					TRACE(TEXT("WriteData(): StartThreadpoolIo() failed\n"));
+				}
+			}
+			else
+			{
+				TRACE(TEXT("WriteData(): m_piois NULL \n"));
+			}
+		}
+		else
+		{
+			TRACE(TEXT("WriteData(): m_lock is locked\n"));
+		}
+	}
+	else
+	{
+		TRACE(TEXT("WriteData(): SharedLock::tryLock failed\n"));
+	}
+	return bRetVal;
+}
+
+void
 DevRandomClientConnection::writeToClient(PTP_CALLBACK_INSTANCE /*Instance*/, IWork * /*pWork*/)
 {
 	//lock locked(m_lock);
 	if( !m_stop )
 	{
 		m_asyncWork = false;
-		SharedLock lock(&m_SRWLock);
-		if( lock.locked() )
+		//SharedLock lock(&m_SRWLock);
+		//if( lock.locked() )
 		{
 			bool bKeepWriting = true;
 			DWORD cbReplyBytes = MyOverlapped::BUFSIZE;
@@ -180,41 +272,49 @@ DevRandomClientConnection::writeToClient(PTP_CALLBACK_INSTANCE /*Instance*/, IWo
 			m_olp->swapBuffers();
 			unsigned __int8 *pGeneratePtr = m_olp->buffer;
 
-			if( m_pio.get() )
+			if( !WriteData(pWritePtr, cbReplyBytes) )
 			{
-				m_asyncIo = true;
-				m_pio->pool()->StartThreadpoolIo(m_pio.get());
-				// Write the reply to the pipe. 
-				BOOL fSuccess = WriteFile( 
-							m_hPipe,        // handle to pipe 
-							pWritePtr,     // buffer to write from 
-							cbReplyBytes, // number of bytes to write 
-							&cbWritten,   // number of bytes written 
-							m_olp.get());        // overlapped I/O 
-
-				if(!fSuccess)
-					fSuccess = checkWriteFileError();
-
-				if (!fSuccess /*|| cbReplyBytes != cbWritten*/ )
-				{   
-					m_asyncIo = false;
-					_ftprintf_s(stderr,TEXT("WriteData::operator() failed, GLE=%d.\n"), GetLastError());
-					bKeepWriting = false;
-				}
-				else if( FALSE == RtlGenRandom(pGeneratePtr, MyOverlapped::BUFSIZE) )
-				{
-					m_pio->pool()->CancelThreadpoolIo(m_pio.get());
-					bKeepWriting = false;
-				}
-			}
-			else
 				bKeepWriting = false;
+			}
+			else if( FALSE == RtlGenRandom(pGeneratePtr, MyOverlapped::BUFSIZE) )
+			{
+				bKeepWriting = false;
+			}
+
+			//if( m_pio.get() )
+			//{
+			//	m_asyncIo = true;
+			//	m_pio->pool()->StartThreadpoolIo(m_pio.get());
+			//	// Write the reply to the pipe. 
+			//	BOOL fSuccess = WriteFile( 
+			//				m_hPipe,        // handle to pipe 
+			//				pWritePtr,     // buffer to write from 
+			//				cbReplyBytes, // number of bytes to write 
+			//				&cbWritten,   // number of bytes written 
+			//				m_olp.get());        // overlapped I/O 
+
+			//	if(!fSuccess)
+			//		fSuccess = checkWriteFileError();
+
+			//	if (!fSuccess /*|| cbReplyBytes != cbWritten*/ )
+			//	{   
+			//		m_asyncIo = false;
+			//		_ftprintf_s(stderr,TEXT("WriteData::operator() failed, GLE=%d.\n"), GetLastError());
+			//		m_pio->pool()->CancelThreadpoolIo(m_pio.get());
+			//		bKeepWriting = false;
+			//	}
+			//	else if( FALSE == RtlGenRandom(pGeneratePtr, MyOverlapped::BUFSIZE) )
+			//	{
+			//		// m_pio->pool()->CancelThreadpoolIo(m_pio.get());
+			//		bKeepWriting = false;
+			//	}
+			//}
+			//else
+			//	bKeepWriting = false;
 			// release our hold on the work object that contains us.
 			// this should trigger deletion of the work object and everything else associated with it.
 			if( !bKeepWriting  )
 			{
-				//if( m_self )
-				//	m_self.reset();	// release ourselves from the thread pool			
 				Stop(WORK_CALL);
 			}
 		}
@@ -265,8 +365,20 @@ DevRandomClientConnection::onWaitSignaled(PTP_CALLBACK_INSTANCE , TP_WAIT_RESULT
 }
 
 void
-DevRandomClientConnection::doStop(PTP_CALLBACK_INSTANCE /*Instance*/, IWork * pWork)
-{	
+DevRandomClientConnection::doStop(PTP_CALLBACK_INSTANCE Instance, IWork * pWork)
+{
+	closeHandle();
+	{
+		ExclusiveLock lock(&m_SRWLock);
+		if( pWork && pWork->pool() )
+		{
+			CallbackMayRunLong(Instance);
+			pWork->pool()->WaitForThreadpoolWorkCallbacks(m_work.get(), FALSE);
+			pWork->pool()->WaitForThreadpoolIoCallbacks(m_pio.get(), TRUE);		
+		}
+	}
+	m_self.reset();
+#if 0
 	::std::unique_ptr<TryExclusiveLock> lock(new TryExclusiveLock(&m_SRWLock));
 	if( lock && lock->locked() )
 	{
@@ -297,7 +409,7 @@ DevRandomClientConnection::doStop(PTP_CALLBACK_INSTANCE /*Instance*/, IWork * pW
 		bool bRetVal = pWork->pool()->SubmitThreadpoolWork(pWork);
 		UNREFERENCED_PARAMETER(bRetVal);
 	}
-
+#endif // 0
 }
 
 void

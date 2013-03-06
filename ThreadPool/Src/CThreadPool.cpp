@@ -12,26 +12,35 @@
 #include "GenericTimer.h"
 #include "GenericIoCompletion.h"
 
+#ifdef _DEBUG
+class Max_LWSpinLock_Report
+{
+public:
+	Max_LWSpinLock_Report() {}
+	~Max_LWSpinLock_Report()
+	{
+		TRACE(TEXT("LWSpinLock max iterations executed was: %d\n"), LWSpinLock::MaxIter());
+	}
+}_____fooReportIt;
+#endif
 
 void
 CThreadPool::insertItem(IThreadPoolItem *pItem)
 {
 	// protect access to the hash table
-	m_lock.acquire();
+	LWSpinLocker lock(m_lock);
 	if( !m_items )
 		m_items.reset(new ::std::hash_set<IThreadPoolItem *>);
 	m_items->insert(pItem);
-	m_lock.release();
 }
 
 void
 CThreadPool::removeItem(IThreadPoolItem *pItem)
 {
-	m_lock.acquire();
+	LWSpinLocker lock(m_lock);
 	m_items->erase(pItem);
 	if( m_items->size() == 0 )
 		m_items.reset();
-	m_lock.release();
 }
 
 DWORD
@@ -191,8 +200,7 @@ CThreadPool::WaitForThreadpoolTimerCallbacks(class ITimer *timer, BOOL bCancelPe
 }
 
 CThreadPool::CThreadPool(const IThreadPool::Priority priority, DWORD dwMinThreads, DWORD dwMaxThreads) :
-m_bEnabled(FALSE),
-m_lock(false)
+m_bEnabled(FALSE)
 {
 	PTP_POOL pool =  CreateThreadpool(NULL);
 	// PTP_IO pio = CreateThreadpoolIo(
