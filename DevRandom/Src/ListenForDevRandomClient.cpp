@@ -13,6 +13,9 @@ m_stop(false)
 	m_work = pPool->newWork([&](PTP_CALLBACK_INSTANCE Instance, IWork *pWork) {
 		listenForClient(Instance, pWork);
 	});
+
+	if( !m_work )
+		throw ::std::runtime_error("ListenForDevRandomClient::ListenForDevRandomClient() - newWork() failed");
 }
 
 ListenForDevRandomClient::~ListenForDevRandomClient()
@@ -105,24 +108,29 @@ ListenForDevRandomClient::listenForClient(PTP_CALLBACK_INSTANCE , IWork *pWork)
 					m_pio = pPool->newIoCompletion(m_hPipe, [&](PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered, IIoCompletion *pIo){
 						onConnectClient(Instance, Overlapped, IoResult, nBytesTransfered, pIo);
 					});
-
-					if( pPool->StartThreadpoolIo(m_pio.get()) )
+					
+					if( m_pio )
 					{
-						BOOL fConnected = ConnectNamedPipe(m_hPipe, m_olp.get());	// asynchronous ConnectNamedPipe() call - this call will return immediately
-																			// and the Io completion routine will be called when a client connects.
-						if( !fConnected )
+						if( pPool->StartThreadpoolIo(m_pio.get()) )
 						{
-							if( GetLastError() == ERROR_IO_PENDING || GetLastError() == ERROR_PIPE_CONNECTED )
-								fConnected = TRUE;
+							BOOL fConnected = ConnectNamedPipe(m_hPipe, m_olp.get());	// asynchronous ConnectNamedPipe() call - this call will return immediately
+																				// and the Io completion routine will be called when a client connects.
+							if( !fConnected )
+							{
+								if( GetLastError() == ERROR_IO_PENDING || GetLastError() == ERROR_PIPE_CONNECTED )
+									fConnected = TRUE;
+							}
+							if( !fConnected )
+							{
+								_ftprintf_s(stderr, TEXT("ConnectNamedPipe failed. GLE=%d\n"), GetLastError());
+								pPool->CancelThreadpoolIo(m_pio.get());	// prevent a memory leak if ConnectNamedPipe() fails.
+							}
 						}
-						if( !fConnected )
-						{
-							_ftprintf_s(stderr, TEXT("ConnectNamedPipe failed. GLE=%d\n"), GetLastError());
-							pPool->CancelThreadpoolIo(m_pio.get());	// prevent a memory leak if ConnectNamedPipe() fails.
-						}
+						else
+							_ftprintf_s(stderr, TEXT("StartThreadpoolIo failed. GLE=%d\n"), GetLastError());
 					}
 					else
-						_ftprintf_s(stderr, TEXT("StartThreadpoolIo failed. GLE=%d\n"), GetLastError());
+						_ftprintf_s(stderr, TEXT("newIoCompletion failed. GLE=%d\n"), GetLastError());
 				}
 				else
 					_ftprintf_s(stderr, TEXT("RtlGenRandom failed. GLE=%d\n"), GetLastError());

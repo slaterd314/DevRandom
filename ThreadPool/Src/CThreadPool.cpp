@@ -299,7 +299,8 @@ CThreadPool::newWork(const IWork::FuncPtr &f)
 	{
 		ptr->setPool(this);
 		ptr->setWork(f);
-		createThreadPoolWork(ptr.get());
+		if( !createThreadPoolWork(ptr.get()) )
+			ptr.reset();
 	}
 	return ::std::static_pointer_cast<IWork>(ptr);
 }
@@ -316,7 +317,8 @@ CThreadPool::newWait(const IWait::FuncPtr &f)
 	{
 		ptr->setPool(this);
 		ptr->setWait(f);
-		createThreadPoolWait(ptr.get());
+		if( !createThreadPoolWait(ptr.get()) )
+			ptr.reset();
 	}
 	return ::std::static_pointer_cast<IWait>(ptr);
 }
@@ -333,7 +335,8 @@ CThreadPool::newTimer(const ITimer::FuncPtr &f)
 	{
 		ptr->setPool(this);
 		ptr->setTimer(f);
-		createThreadPoolTimer(ptr.get());
+		if( !createThreadPoolTimer(ptr.get()) )
+			ptr.reset();
 	}
 	return ::std::static_pointer_cast<ITimer>(ptr);
 }
@@ -351,70 +354,87 @@ CThreadPool::newIoCompletion(HANDLE hIoObject, const IIoCompletion::FuncPtr &f)
 	{
 		ptr->setPool(this);
 		ptr->setIoComplete(f);
-		createThreadPoolIoCompletion(hIoObject, ptr.get());
+		if( !createThreadPoolIoCompletion(hIoObject, ptr.get()) )
+			ptr.reset();
 	}
 	return ::std::static_pointer_cast<IIoCompletion>(ptr);
 }
 
 template <class C>
-void 
+bool 
 CThreadPool::createThreadPoolWork(IWorkImpl<C> *pWork)
 {
+	bool bRetVal = false;
 	if( pWork && Enabled())
 	{
 		PVOID Param = reinterpret_cast<PVOID>(static_cast<C *>(pWork));
 		PTP_WORK ptpWork = ::CreateThreadpoolWork(IWork_callback, Param, env());
-		
-		if( NULL == ptpWork )
+		if( NULL != ptpWork )
 		{
-			_ftprintf_s(stderr,TEXT("CreateThreadpoolWork failed, GLE=%d.\n"), GetLastError()); 
+			pWork->setPtp(ptpWork);
+			bRetVal = true;
 		}
-		pWork->setPtp(ptpWork);
+		else
+			_ftprintf_s(stderr,TEXT("CreateThreadpoolWork failed, GLE=%d.\n"), GetLastError()); 
 	}
+	return bRetVal;
 }
 
 template <class C>
-void
+bool
 CThreadPool::createThreadPoolWait(IWaitImpl<C> *pWait)
 {
+	bool bRetVal = false;
 	if( pWait && Enabled())
 	{
 		PTP_WAIT ptpWait = ::CreateThreadpoolWait(IWait_callback, reinterpret_cast<PVOID>(pWait), env());
-		
-		if( NULL == ptpWait )
+		if( NULL != ptpWait )
 		{
-			_ftprintf_s(stderr,TEXT("CreateThreadpoolWait failed, GLE=%d.\n"), GetLastError()); 
+			bRetVal = true;
+			pWait->setPtp(ptpWait);
 		}
-		pWait->setPtp(ptpWait);
+		else
+			_ftprintf_s(stderr,TEXT("CreateThreadpoolWait failed, GLE=%d.\n"), GetLastError()); 
 	}
+	return bRetVal;
 }
 
 template <class C>
-void
+bool
 CThreadPool::createThreadPoolTimer(ITimerImpl<C> *pTimer)
 {
+	bool bRetVal = false;
 	if( pTimer && Enabled())
 	{
 		PTP_TIMER ptpTimer = ::CreateThreadpoolTimer(ITimer_callback, reinterpret_cast<PVOID>(pTimer), env());
-		
-		if( NULL == ptpTimer )
+		if( NULL != ptpTimer )
 		{
-			_ftprintf_s(stderr,TEXT("CreateThreadpoolTimer failed, GLE=%d.\n"), GetLastError()); 
+			bRetVal = true;
+			pTimer->setPtp(ptpTimer);
 		}
-		pTimer->setPtp(ptpTimer);
+		else
+			_ftprintf_s(stderr,TEXT("CreateThreadpoolTimer failed, GLE=%d.\n"), GetLastError()); 	
 	}
+	return bRetVal;
 }
 
 template <class C>
-void
+bool
 CThreadPool::createThreadPoolIoCompletion(HANDLE hIo, IIoCompletionImpl<C> *pIoCompletion)
 {
+	bool bRetVal = false;
 	if( pIoCompletion && Enabled() )
 	{
 		PTP_IO pio = ::CreateThreadpoolIo(hIo, IIoCompletion_callback, (PVOID)(IIoCompletion *)pIoCompletion, env());
 		if( pio )
+		{
+			bRetVal = true;
 			pIoCompletion->setPio(pio);
+		}
+		else
+			_ftprintf_s(stderr,TEXT("CreateThreadpoolIo failed, GLE=%d.\n"), GetLastError()); 	
 	}
+	return bRetVal;
 }
 
 //static

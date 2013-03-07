@@ -67,6 +67,9 @@ m_nOutStandingIoOps(0)
 		writeToClient(Instance, pWork);
 	});
 
+	if( !m_work )
+		throw ::std::runtime_error("DevRandomClientConnection::DevRandomClientConnection() - newWork() failed");
+
 	m_pio->setIoComplete([&](PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered, IIoCompletion *pIo){
 		onWriteClientComplete(Instance, Overlapped, IoResult, nBytesTransfered, pIo);
 	});
@@ -77,10 +80,11 @@ m_nOutStandingIoOps(0)
 			onWaitSignaled(Instance,WaitResult,pWait);
 		});
 
-		if( m_wait )
-		{
-			pPool->SetThreadpoolWait(hStopEvent,NULL,m_wait.get());
-		}
+		if( !m_wait )
+			throw ::std::runtime_error("DevRandomClientConnection::DevRandomClientConnection() - newWait() failed");
+
+		pPool->SetThreadpoolWait(hStopEvent,NULL,m_wait.get());
+
 	}
 	m_olp->buffer = m_olp->buffer1;
 	RtlGenRandom(m_olp->buffer, MyOverlapped::BUFSIZE);
@@ -265,14 +269,12 @@ DevRandomClientConnection::writeToClient(PTP_CALLBACK_INSTANCE /*Instance*/, IWo
 		//if( lock.locked() )
 		{
 			bool bKeepWriting = true;
-			DWORD cbReplyBytes = MyOverlapped::BUFSIZE;
-			DWORD cbWritten = 0;
 
 			unsigned __int8 *pWritePtr = m_olp->buffer;
 			m_olp->swapBuffers();
 			unsigned __int8 *pGeneratePtr = m_olp->buffer;
 
-			if( !WriteData(pWritePtr, cbReplyBytes) )
+			if( !WriteData(pWritePtr, MyOverlapped::BUFSIZE) )
 			{
 				bKeepWriting = false;
 			}

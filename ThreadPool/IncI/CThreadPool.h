@@ -47,13 +47,13 @@ public:
 	virtual ITimerPtr newTimer(const ITimer::FuncPtr &f);
 	virtual IIoCompletionPtr newIoCompletion(HANDLE hIoObject, const IIoCompletion::FuncPtr &f);
 	template <class C>
-	void createThreadPoolWork(IWorkImpl<C> *pWork);
+	bool createThreadPoolWork(IWorkImpl<C> *pWork);
 	template <class C>
-	void createThreadPoolWait(IWaitImpl<C> *pWait);
+	bool createThreadPoolWait(IWaitImpl<C> *pWait);
 	template <class C>
-	void createThreadPoolTimer(ITimerImpl<C> *pTimer);
+	bool createThreadPoolTimer(ITimerImpl<C> *pTimer);
 	template <class C>
-	void createThreadPoolIoCompletion(HANDLE hIo, IIoCompletionImpl<C> *pIoCompletion);
+	bool createThreadPoolIoCompletion(HANDLE hIo, IIoCompletionImpl<C> *pIoCompletion);
 
 	static VOID CALLBACK IWork_callback(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK /*Work*/);
 	static VOID CALLBACK IWait_callback(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT /*Wait*/, TP_WAIT_RESULT WaitResult);
