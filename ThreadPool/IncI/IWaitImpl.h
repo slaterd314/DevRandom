@@ -18,6 +18,21 @@ public:
 	}
 	virtual PTP_WAIT handle() { return m_ptpWait; }
 	virtual void setPtp(PTP_WAIT w) { m_ptpWait = w; }
+
+	virtual bool SetThreadpoolWait(HANDLE h, PFILETIME pftTimeout)
+	{
+		return pool() ? pool()->SetThreadpoolWait(h,pftTimeout,this) : false;
+	}
+
+	virtual bool CloseWait()
+	{
+		return pool() ? pool()->CloseThreadpoolWait(this) : false;
+	}
+	virtual void WaitForCallbacks(BOOL bCancelPendingCallbacks)
+	{
+		if( pool() )
+			pool()->WaitForThreadpoolWaitCallbacks(this, bCancelPendingCallbacks);
+	}
 };
 
 

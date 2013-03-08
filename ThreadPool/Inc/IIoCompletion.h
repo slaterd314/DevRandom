@@ -23,6 +23,10 @@ public:
 								  __in         ULONG_PTR NumberOfBytesTransferred,
 								  __inout      PTP_IO Io);
 	virtual PTP_IO handle()=0;
+	virtual bool StartIo()=0;
+	virtual bool CloseIo()=0;
+	virtual bool CancelIo()=0;
+	virtual void WaitForCallbacks(BOOL bCancelPendingCallbacks)=0;
 };
 
 typedef ::std::shared_ptr<IIoCompletion> IIoCompletionPtr;

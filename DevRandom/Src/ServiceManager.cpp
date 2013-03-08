@@ -150,27 +150,6 @@ ServiceManager::SvcInit( DWORD, LPTSTR * )
 	}
 	else
 		ReportSvcStatus( SERVICE_STOPPED, ERROR_NOT_ENOUGH_MEMORY, 0 );
-	//IWorkPtr pWork = makePipeServer(TEXT("\\\\.\\pipe\\random"), pPool.get());
-	//if( pWork )
-	//{
-	//	pPool->SubmitThreadpoolWork(pWork.get());
-	//}
-
-#ifdef DEPRECATED
-	if( pPool )
-	{
-		IClientConnection *pConn = pPool->newNamedPipeConnection();
-		if( pConn )
-		{
-			IWork *pWork = pPool->newWaitForNewConnection(pConn);
-			if( pWork )
-			{
-				pPool->SubmitThreadpoolWork(pWork);
-				ReportSvcStatus( SERVICE_RUNNING, NO_ERROR, 0 );
-			}
-		}		
-	}	
-#endif // DEPRECATED
 }
 
 //

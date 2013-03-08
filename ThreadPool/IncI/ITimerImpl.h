@@ -17,6 +17,20 @@ public:
 	}
 	virtual PTP_TIMER handle() { return m_ptpTimer; }
 	virtual void setPtp(PTP_TIMER t) { m_ptpTimer = t; }
+	virtual bool SetThreadpoolTimer(PFILETIME pftDueTime, DWORD msPeriod, DWORD msWindowLength)
+	{
+		return pool() ? pool()->SetThreadpoolTimer(pftDueTime,msPeriod,msWindowLength,this) : false;
+	}
+	virtual bool CloseTimer()
+	{
+		return pool() ? pool()->CloseThreadpoolTimer(this) : false;
+	}
+
+	virtual void WaitForCallbacks(BOOL bCancelPendingCallbacks)
+	{
+		if( pool() )
+			pool()->WaitForThreadpoolTimerCallbacks(this, bCancelPendingCallbacks);
+	}
 };
 
 

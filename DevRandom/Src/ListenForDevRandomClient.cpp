@@ -27,8 +27,8 @@ bool
 ListenForDevRandomClient::runServer()
 {
 	bool bRetVal = false;
-	if( m_work && m_work->pool() )
-		bRetVal = m_work->pool()->SubmitThreadpoolWork(m_work.get());
+	if( m_work )
+		bRetVal = m_work->SubmitWork();
 	return bRetVal;
 }
 
@@ -43,10 +43,11 @@ ListenForDevRandomClient::shutDownServer()
 	{
 		CancelIoEx(m_hPipe, m_olp.get());
 		m_hPipe = INVALID_HANDLE_VALUE;
-		m_pio->pool()->WaitForThreadpoolIoCallbacks(m_pio.get(), TRUE);
-		m_work->pool()->WaitForThreadpoolWorkCallbacks(m_work.get(), TRUE);
-		m_pio->pool()->CloseThreadpoolIo(m_pio.get());
-		m_work->pool()->CloseThreadpoolWork(m_work.get());
+		m_pio->WaitForCallbacks(TRUE);
+		m_work->WaitForCallbacks(TRUE);
+		m_pio->CloseIo();
+		m_work->CloseWork();
+		CloseHandle(m_hPipe);
 	}
 }
 
@@ -71,8 +72,8 @@ bool
 ListenForDevRandomClient::startServer()
 {
 	bool bRetVal = false;
-	if( m_work && m_work->pool() )
-		bRetVal = m_work->pool()->SubmitThreadpoolWork(m_work.get());
+	if( m_work  )
+		bRetVal = m_work->SubmitWork();
 	return bRetVal;
 }
 
@@ -111,7 +112,7 @@ ListenForDevRandomClient::listenForClient(PTP_CALLBACK_INSTANCE , IWork *pWork)
 					
 					if( m_pio )
 					{
-						if( pPool->StartThreadpoolIo(m_pio.get()) )
+						if( m_pio->StartIo() )
 						{
 							BOOL fConnected = ConnectNamedPipe(m_hPipe, m_olp.get());	// asynchronous ConnectNamedPipe() call - this call will return immediately
 																				// and the Io completion routine will be called when a client connects.
@@ -123,11 +124,11 @@ ListenForDevRandomClient::listenForClient(PTP_CALLBACK_INSTANCE , IWork *pWork)
 							if( !fConnected )
 							{
 								_ftprintf_s(stderr, TEXT("ConnectNamedPipe failed. GLE=%d\n"), GetLastError());
-								pPool->CancelThreadpoolIo(m_pio.get());	// prevent a memory leak if ConnectNamedPipe() fails.
+								m_pio->CancelIo();	// prevent a memory leak if ConnectNamedPipe() fails.
 							}
 						}
 						else
-							_ftprintf_s(stderr, TEXT("StartThreadpoolIo failed. GLE=%d\n"), GetLastError());
+							_ftprintf_s(stderr, TEXT("m_pio->StartIo() failed. GLE=%d\n"), GetLastError());
 					}
 					else
 						_ftprintf_s(stderr, TEXT("newIoCompletion failed. GLE=%d\n"), GetLastError());
@@ -190,7 +191,7 @@ ListenForDevRandomClient::onConnectClient(PTP_CALLBACK_INSTANCE , PVOID Overlapp
 		TRACE(TEXT(">>>ListenForDevRandomClient::onConnectClient() exit\n")); 
 		if( pPool && bReSubmit )
 		{
-			if( !pPool->SubmitThreadpoolWork(m_work.get()) )
+			if( !m_work->SubmitWork() )
 			{
 				_ftprintf_s(stderr, TEXT("ListenForDevRandomClient::onConnectClient SubmitThreadpoolWork failed. GLE=%d\n"), GetLastError());
 				{

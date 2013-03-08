@@ -69,13 +69,16 @@ CThreadPool::Shutdown()
 
 	Sleep(10000);
 
-	CloseThreadpoolCleanupGroupMembers(env()->CleanupGroup, TRUE, NULL);
-	CloseThreadpoolCleanupGroup(env()->CleanupGroup);
-	env()->CleanupGroup = NULL;
-	PTP_POOL pool = env()->Pool;
-	DestroyThreadpoolEnvironment(&m_env);
+	if( env() )
+	{
+		CloseThreadpoolCleanupGroupMembers(env()->CleanupGroup, TRUE, NULL);
+		CloseThreadpoolCleanupGroup(env()->CleanupGroup);
+		env()->CleanupGroup = NULL;
+		PTP_POOL pool = env()->Pool;
+		DestroyThreadpoolEnvironment(env());
+		CloseThreadpool(pool);
+	}
 	memset(&m_env, '\0', sizeof(m_env));
-	CloseThreadpool(pool);
 }
 
 void
@@ -97,9 +100,6 @@ CThreadPool::CloseThreadpoolWork(class IWork *work)
 	if( bRetVal )
 	{
 		::CloseThreadpoolWork(work->handle());
-		//IWorkImplPrivate *ptr = dynamic_cast<IWorkImplPrivate *>(work);
-		//if( ptr )
-		//	ptr->setPtp(NULL);
 	}
 
 	return bRetVal;
@@ -123,6 +123,24 @@ CThreadPool::SetThreadpoolWait(class IWait *wait, HANDLE h, PFILETIME pftTimeout
 	bool bRetVal = (NULL != wait) && Enabled();
 	if( bRetVal )
 		::SetThreadpoolWait(wait->handle(),h,pftTimeout);
+	return bRetVal;
+}
+
+bool
+CThreadPool::SetThreadpoolTimer(PFILETIME pftDueTime, DWORD msPeriod, DWORD msWindowLength, class ITimer *timer)
+{
+	bool bRetVal = (NULL != timer) && Enabled();
+	if( bRetVal )
+		::SetThreadpoolTimer(timer->handle(),pftDueTime,msPeriod,msWindowLength);
+	return bRetVal;
+}
+
+bool
+CThreadPool::CloseThreadpoolTimer(class ITimer *timer)
+{
+	bool bRetVal = (NULL != timer) && Enabled();
+	if( bRetVal )
+		::CloseThreadpoolTimer(timer->handle());
 	return bRetVal;
 }
 
@@ -199,6 +217,30 @@ CThreadPool::WaitForThreadpoolTimerCallbacks(class ITimer *timer, BOOL bCancelPe
 		::WaitForThreadpoolTimerCallbacks(timer->handle(), bCancelPendingCallbacks);
 }
 
+CThreadPool::CThreadPool(int) :
+m_bEnabled(TRUE)
+{
+
+}
+
+void
+CThreadPool::SetThreadpoolCallbackLibrary( void *mod)
+{
+	if( env() )
+	{
+		::SetThreadpoolCallbackLibrary(env(), mod);
+	}
+}
+
+void
+CThreadPool::SetThreadpoolCallbackRunsLong( )
+{
+	if( env() )
+	{
+		::SetThreadpoolCallbackRunsLong(env());
+	}
+}
+
 CThreadPool::CThreadPool(const IThreadPool::Priority priority, DWORD dwMinThreads, DWORD dwMaxThreads) :
 m_bEnabled(FALSE)
 {
@@ -266,17 +308,19 @@ CThreadPool::~CThreadPool()
 		});
 	}
 #endif // _DEBUG
-
-	if( env()->CleanupGroup )
+	if( env() )
 	{
-		CloseThreadpoolCleanupGroupMembers(env()->CleanupGroup, TRUE, NULL);
-		CloseThreadpoolCleanupGroup(env()->CleanupGroup);
-	}
-	if( env()->Pool )
-	{
-		PTP_POOL pool = env()->Pool;
-		DestroyThreadpoolEnvironment(env());
-		CloseThreadpool(pool);
+		if( env()->CleanupGroup )
+		{
+			CloseThreadpoolCleanupGroupMembers(env()->CleanupGroup, TRUE, NULL);
+			CloseThreadpoolCleanupGroup(env()->CleanupGroup);
+		}
+		if( env()->Pool )
+		{
+			PTP_POOL pool = env()->Pool;
+			DestroyThreadpoolEnvironment(env());
+			CloseThreadpool(pool);
+		}
 	}
 }
 
@@ -490,6 +534,27 @@ CThreadPool::IIoCompletion_callback(__inout      PTP_CALLBACK_INSTANCE Instance,
 	}
 }
 
+
+class CDefaultThreadPool : public CThreadPool
+{
+public:
+	CDefaultThreadPool() : CThreadPool((int)0) {}
+	~CDefaultThreadPool() {}
+	virtual PTP_CALLBACK_ENVIRON env()
+	{
+		return NULL;
+	}
+	static IThreadPool * getDefaultPool()
+	{
+		return &m_defPool;
+	}
+	virtual void Shutdown() {}
+private:
+	static CDefaultThreadPool m_defPool;
+};
+
+CDefaultThreadPool CDefaultThreadPool::m_defPool;
+
 template<class C>
 IThreadPoolItemImpl<C>::IThreadPoolItemImpl() : m_pool(NULL)
 {
@@ -510,7 +575,7 @@ IThreadPoolItemImpl<C>::~IThreadPoolItemImpl()
 }
 template<class C>
 void
-IThreadPoolItemImpl<C>::setPool(IThreadPool *p)
+IThreadPoolItemImpl<C>::setPool(CThreadPool *p)
 {
 	if( m_pool == NULL )
 	{
@@ -528,4 +593,12 @@ IThreadPool::newPool(const IThreadPool::Priority priority, const DWORD dwMinThre
 #else
 	return ::std::static_pointer_cast<IThreadPool>(::std::make_shared<CThreadPool>(priority, dwMinThreads, dwMaxThreads));
 #endif
+}
+
+// static
+THREADPOOL_API
+IThreadPool *
+IThreadPool::getDefaultPool()
+{
+	return CDefaultThreadPool::getDefaultPool();
 }

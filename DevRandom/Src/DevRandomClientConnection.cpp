@@ -83,7 +83,7 @@ m_nOutStandingIoOps(0)
 		if( !m_wait )
 			throw ::std::runtime_error("DevRandomClientConnection::DevRandomClientConnection() - newWait() failed");
 
-		pPool->SetThreadpoolWait(hStopEvent,NULL,m_wait.get());
+		m_wait->SetThreadpoolWait(hStopEvent,NULL);
 
 	}
 	m_olp->buffer = m_olp->buffer1;
@@ -100,17 +100,17 @@ DevRandomClientConnection::~DevRandomClientConnection()
 		if( m_work)
 		{
 			//::WaitForThreadpoolWorkCallbacks(m_work->handle(), TRUE);
-			pPool->CloseThreadpoolWork(m_work.get());
+			m_work->CloseWork();
 		}
 		if( m_pio )
 		{
 			//::WaitForThreadpoolIoCallbacks(m_pio->handle(), FALSE);
-			pPool->CloseThreadpoolIo(m_pio.get());
+			m_pio->CloseIo();
 		}
 		if( m_wait )
 		{
 			//::WaitForThreadpoolWaitCallbacks(m_wait->handle(),TRUE);
-			pPool->CloseThreadpoolWait(m_wait.get());
+			m_wait->CloseWait();
 		}				
 	}
 
@@ -215,7 +215,7 @@ DevRandomClientConnection::WriteData(const unsigned __int8 *pData, const DWORD &
 		{
 			if( m_pio.get() )
 			{
-				bRetVal = m_pio->pool()->StartThreadpoolIo(m_pio.get());
+				bRetVal = m_pio->StartIo();
 				if( bRetVal )
 				{
 					m_asyncIo = true;
@@ -233,12 +233,12 @@ DevRandomClientConnection::WriteData(const unsigned __int8 *pData, const DWORD &
 						bRetVal = false;
 						m_asyncIo = false;
 						_ftprintf_s(stderr,TEXT("WriteFile() failed, GLE=%d.\n"), GetLastError());
-						m_pio->pool()->CancelThreadpoolIo(m_pio.get());
+						m_pio->CancelIo();
 					}
 				}
 				else
 				{
-					TRACE(TEXT("WriteData(): StartThreadpoolIo() failed\n"));
+					TRACE(TEXT("WriteData(): m_pio->StartIo() failed\n"));
 				}
 			}
 			else
@@ -283,38 +283,6 @@ DevRandomClientConnection::writeToClient(PTP_CALLBACK_INSTANCE /*Instance*/, IWo
 				bKeepWriting = false;
 			}
 
-			//if( m_pio.get() )
-			//{
-			//	m_asyncIo = true;
-			//	m_pio->pool()->StartThreadpoolIo(m_pio.get());
-			//	// Write the reply to the pipe. 
-			//	BOOL fSuccess = WriteFile( 
-			//				m_hPipe,        // handle to pipe 
-			//				pWritePtr,     // buffer to write from 
-			//				cbReplyBytes, // number of bytes to write 
-			//				&cbWritten,   // number of bytes written 
-			//				m_olp.get());        // overlapped I/O 
-
-			//	if(!fSuccess)
-			//		fSuccess = checkWriteFileError();
-
-			//	if (!fSuccess /*|| cbReplyBytes != cbWritten*/ )
-			//	{   
-			//		m_asyncIo = false;
-			//		_ftprintf_s(stderr,TEXT("WriteData::operator() failed, GLE=%d.\n"), GetLastError());
-			//		m_pio->pool()->CancelThreadpoolIo(m_pio.get());
-			//		bKeepWriting = false;
-			//	}
-			//	else if( FALSE == RtlGenRandom(pGeneratePtr, MyOverlapped::BUFSIZE) )
-			//	{
-			//		// m_pio->pool()->CancelThreadpoolIo(m_pio.get());
-			//		bKeepWriting = false;
-			//	}
-			//}
-			//else
-			//	bKeepWriting = false;
-			// release our hold on the work object that contains us.
-			// this should trigger deletion of the work object and everything else associated with it.
 			if( !bKeepWriting  )
 			{
 				Stop(WORK_CALL);
@@ -324,7 +292,7 @@ DevRandomClientConnection::writeToClient(PTP_CALLBACK_INSTANCE /*Instance*/, IWo
 }
 
 void
-DevRandomClientConnection::onWriteClientComplete(PTP_CALLBACK_INSTANCE , PVOID /*Overlapped*/, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo)
+DevRandomClientConnection::onWriteClientComplete(PTP_CALLBACK_INSTANCE , PVOID /*Overlapped*/, ULONG IoResult, ULONG_PTR, IIoCompletion * /*pIo*/)
 {
 	if( !m_stop )
 	{
@@ -336,7 +304,7 @@ DevRandomClientConnection::onWriteClientComplete(PTP_CALLBACK_INSTANCE , PVOID /
 			{
 				//lock locked(m_lock);
 				m_asyncWork = true;
-				if( !pIo->pool()->SubmitThreadpoolWork(m_work.get()) )
+				if( !m_work->SubmitWork() )
 				{
 					Stop(IO_CALL);// m_self.reset();
 					m_asyncWork = false;
@@ -354,7 +322,7 @@ DevRandomClientConnection::runClient()
 	bool bRetVal = false;
 	if( m_work && m_pio && m_hPipe != INVALID_HANDLE_VALUE )
 	{
-		bRetVal = m_work->pool()->SubmitThreadpoolWork(m_work.get());
+		bRetVal = m_work->SubmitWork();
 	}
 	return bRetVal;
 }
@@ -367,6 +335,23 @@ DevRandomClientConnection::onWaitSignaled(PTP_CALLBACK_INSTANCE , TP_WAIT_RESULT
 }
 
 void
+DevRandomClientConnection::doStop2(PTP_CALLBACK_INSTANCE Instance, IThreadPool * pPool)
+{
+	closeHandle();
+	{
+		ExclusiveLock lock(&m_SRWLock);
+		if( pPool )
+		{
+			CallbackMayRunLong(Instance);
+			m_work->WaitForCallbacks(TRUE);
+			m_pio->WaitForCallbacks(TRUE);
+		}
+	}
+	m_self.reset();
+}
+
+
+void
 DevRandomClientConnection::doStop(PTP_CALLBACK_INSTANCE Instance, IWork * pWork)
 {
 	closeHandle();
@@ -375,44 +360,13 @@ DevRandomClientConnection::doStop(PTP_CALLBACK_INSTANCE Instance, IWork * pWork)
 		if( pWork && pWork->pool() )
 		{
 			CallbackMayRunLong(Instance);
-			pWork->pool()->WaitForThreadpoolWorkCallbacks(m_work.get(), FALSE);
-			pWork->pool()->WaitForThreadpoolIoCallbacks(m_pio.get(), TRUE);		
+			m_work->WaitForCallbacks(TRUE);
+			m_pio->WaitForCallbacks(TRUE);
 		}
 	}
 	m_self.reset();
-#if 0
-	::std::unique_ptr<TryExclusiveLock> lock(new TryExclusiveLock(&m_SRWLock));
-	if( lock && lock->locked() )
-	{
-		IThreadPool *pPool = pWork ? pWork->pool() : NULL;
-		if( pPool )
-		{
-			if( INVALID_HANDLE_VALUE != m_hPipe )
-			{
-				//HANDLE h = InterlockedExchangePointer(&m_hPipe, INVALID_HANDLE_VALUE);
-				CloseHandle(m_hPipe);
-				m_hPipe = INVALID_HANDLE_VALUE;
-				if( m_pio && m_asyncIo)
-				{
-					pPool->WaitForThreadpoolIoCallbacks(m_pio.get(), TRUE);
-					//pPool->CloseThreadpoolIo(m_pio.get());
-				}
-			}
-			if( m_work && m_asyncWork)
-				pPool->WaitForThreadpoolWorkCallbacks(m_work.get(), TRUE);
-			pPool->CloseThreadpoolWork(pWork);
-		}
-		lock.reset();
-		m_self.reset();
-	}
-	else if( pWork )
-	{
-		// re-submit the work packet
-		bool bRetVal = pWork->pool()->SubmitThreadpoolWork(pWork);
-		UNREFERENCED_PARAMETER(bRetVal);
-	}
-#endif // 0
 }
+
 
 void
 DevRandomClientConnection::Stop(StopCaller /*caller*/)
@@ -422,12 +376,16 @@ DevRandomClientConnection::Stop(StopCaller /*caller*/)
 		IThreadPool *pPool = (m_work ? m_work->pool() : (m_pio ? m_pio->pool() : NULL));
 		if( pPool )
 		{
-			m_workStop = pPool->newWork([&](PTP_CALLBACK_INSTANCE Instance, IWork * pWork) {
-				doStop(Instance, pWork);
-			});
-			if( m_workStop )
+			IThreadPool *pPool = IThreadPool::getDefaultPool();
+			if( pPool )
 			{
-				pPool->SubmitThreadpoolWork(m_workStop.get());
+				m_workStop = pPool->newWork([&](PTP_CALLBACK_INSTANCE Instance, IWork * pWork) {
+					doStop(Instance, pWork);
+				});
+				if( m_workStop )
+				{
+					m_workStop->SubmitWork();
+				}
 			}
 		}
 	}

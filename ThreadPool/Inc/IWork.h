@@ -14,6 +14,9 @@ public:
 	virtual void setWork(const FuncPtr &f)=0;
 	virtual ~IWork(){}
 	virtual PTP_WORK handle()=0;
+	virtual bool SubmitWork()=0;
+	virtual bool CloseWork()=0;
+	virtual void WaitForCallbacks(BOOL bCancelPendingCallbacks)=0;
 };
 
 typedef ::std::shared_ptr<IWork> IWorkPtr;

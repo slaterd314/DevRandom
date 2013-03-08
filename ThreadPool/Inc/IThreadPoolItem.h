@@ -12,7 +12,7 @@ public:
 	virtual class IThreadPool *pool()=0;
 	virtual ~IThreadPoolItem() {}
 protected:
-	virtual void setPool(IThreadPool *f)=0;
+	virtual void setPool(class CThreadPool *f)=0;
 };
 
 typedef ::std::shared_ptr<IThreadPoolItem> IThreadPoolItemPtr;

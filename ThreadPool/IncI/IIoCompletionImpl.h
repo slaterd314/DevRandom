@@ -22,6 +22,23 @@ public:
 	{
 		return m_pio;
 	}
+	virtual bool StartIo()
+	{
+		return pool() ? pool()->StartThreadpoolIo(this) : false;
+	}
+	virtual bool CloseIo()
+	{
+		return pool() ? pool()->CloseThreadpoolIo(this) : false;
+	}
+	virtual bool CancelIo()
+	{
+		return pool() ? pool()->CancelThreadpoolIo(this) : false;
+	}
+	virtual void WaitForCallbacks(BOOL bCancelPendingCallbacks)
+	{
+		if( pool() )
+			pool()->WaitForThreadpoolIoCallbacks(this, bCancelPendingCallbacks);
+	}
 };
 
 

@@ -33,6 +33,19 @@ public:
 	}
 	virtual PTP_WORK handle() { return m_ptpWork; }
 	virtual void setPtp(PTP_WORK w) { m_ptpWork = w; }
+	virtual bool SubmitWork()
+	{
+		return pool() ? pool()->SubmitThreadpoolWork(this) : false;
+	}
+	virtual bool CloseWork()
+	{
+		return pool() ? pool()->CloseThreadpoolWork(this) : false;
+	}
+	virtual void WaitForCallbacks(BOOL bCancelPendingCallbacks)
+	{
+		if( pool() )
+			pool()->WaitForThreadpoolWorkCallbacks(this, bCancelPendingCallbacks);
+	}
 };
 
 

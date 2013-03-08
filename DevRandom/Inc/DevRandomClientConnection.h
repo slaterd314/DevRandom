@@ -8,6 +8,7 @@
 #include "IWork.h"
 #include "SpinLock.h"
 
+#pragma warning(disable : 4324)
 
 class DevRandomClientConnection : public ::std::enable_shared_from_this<DevRandomClientConnection>
 {
@@ -45,6 +46,7 @@ public:
 	bool runClient();
 	void onWaitSignaled(PTP_CALLBACK_INSTANCE , TP_WAIT_RESULT /*WaitResult*/, IWait * /*pWait*/);
 	void doStop(PTP_CALLBACK_INSTANCE Instance, IWork * pWork);
+	void doStop2(PTP_CALLBACK_INSTANCE Instance, IThreadPool * pPool);
 	void Stop(StopCaller /*caller*/);
 private:
 	bool WriteData(const unsigned __int8 *pData, const DWORD &dwDataLength);
@@ -66,5 +68,7 @@ private:
 	static volatile ALIGN MACHINE_INT	m_nActiveClients;
 	SRWLOCK								m_SRWLock;
 };
+
+#pragma warning(default : 4324)
 
 #endif // __DEVRANDOMCLIENTCONNECTION_H__

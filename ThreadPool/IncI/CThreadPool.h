@@ -19,7 +19,7 @@ class CThreadPool : public IThreadPool
 public:
 	void insertItem(IThreadPoolItem *pItem);
 	void removeItem(IThreadPoolItem *pItem);
-private:
+public:
 	DWORD GetThreadPoolSize();
 
 	virtual bool Enabled();
@@ -33,10 +33,14 @@ private:
 	virtual bool StartThreadpoolIo(IIoCompletion *pIo);
 	virtual bool CancelThreadpoolIo(IIoCompletion *pIo);
 	virtual bool CloseThreadpoolIo(IIoCompletion *pIo);
+	virtual bool SetThreadpoolTimer(PFILETIME pftDueTime, DWORD msPeriod, DWORD msWindowLength, class ITimer *timer);
+	virtual bool CloseThreadpoolTimer(class ITimer *timer);
 	virtual void WaitForThreadpoolWorkCallbacks(IWork *work, BOOL bCancelPendingCallbacks);
 	virtual void WaitForThreadpoolIoCallbacks(IIoCompletion *pio, BOOL bCancelPendingCallbacks);
 	virtual void WaitForThreadpoolWaitCallbacks(IWait *wait, BOOL bCancelPendingCallbacks);
 	virtual void WaitForThreadpoolTimerCallbacks(ITimer *timer, BOOL bCancelPendingCallbacks);
+	virtual void SetThreadpoolCallbackLibrary( void *mod);
+	virtual void SetThreadpoolCallbackRunsLong();
 public:
 	CThreadPool(const IThreadPool::Priority priority=IThreadPool::NORMAL, DWORD dwMinThreads=0, DWORD dwMaxThreads=0);
 	~CThreadPool();
@@ -64,6 +68,8 @@ public:
 													__in         ULONG IoResult,
 													__in         ULONG_PTR NumberOfBytesTransferred,
 													__inout      PTP_IO /*Io*/);
+protected:
+	explicit CThreadPool(int);
 private:
 	TP_CALLBACK_ENVIRON m_env;
 	unsigned __int32	m_bEnabled;

@@ -14,6 +14,9 @@ public:
 	virtual void setWait(const FuncPtr &f)=0;
 	virtual ~IWait(){}
 	virtual PTP_WAIT handle()=0;
+	virtual bool SetThreadpoolWait(HANDLE h, PFILETIME pftTimeout)=0;
+	virtual bool CloseWait()=0;
+	virtual void WaitForCallbacks(BOOL bCancelPendingCallbacks)=0;
 };
 
 typedef ::std::shared_ptr<IWait> IWaitPtr;

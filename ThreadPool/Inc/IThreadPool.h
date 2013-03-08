@@ -44,25 +44,17 @@ public:
 	virtual ITimerPtr			newTimer(const ITimer::FuncPtr &f)=0;
 
 public:
-	/// Close a thread pool work item and release the OS resources.
-	virtual bool CloseThreadpoolWork(class IWork *work)=0;
-	virtual bool SubmitThreadpoolWork(class IWork *work)=0;
-	virtual bool StartThreadpoolIo(class IIoCompletion *pCn)=0;
-	virtual bool CancelThreadpoolIo(class IIoCompletion *pCn)=0;
-	virtual bool CloseThreadpoolIo(class IIoCompletion *pCn)=0;
-	// virtual void WaitForThreadpoolIoCallbacks(class IClientConnection *pCn, BOOL bCancelPending)=0;
-	virtual bool SetThreadpoolWait(HANDLE h, PFILETIME pftTImeout, class IWait *wait)=0;
-	virtual bool CloseThreadpoolWait(class IWait *wait)=0;
-	virtual void WaitForThreadpoolWorkCallbacks(class IWork *work, BOOL bCancelPendingCallbacks)=0;
-	virtual void WaitForThreadpoolIoCallbacks(class IIoCompletion *pio, BOOL bCancelPendingCallbacks)=0;
-	virtual void WaitForThreadpoolWaitCallbacks(class IWait *wait, BOOL bCancelPendingCallbacks)=0;
-	virtual void WaitForThreadpoolTimerCallbacks(class ITimer *timer, BOOL bCancelPendingCallbacks)=0;
+
+	virtual void SetThreadpoolCallbackLibrary( void *mod)=0;
+	virtual void SetThreadpoolCallbackRunsLong()=0;
 
 	// Create a new Thread pool.
 	// with the given priority, minimum and maximum number of threads.
 	// pass dwMinThreads=0 & dwMaxThreads=0 to automatically choose these values based
 	// on your system.
 	static THREADPOOL_API IThreadPoolPtr newPool(const IThreadPool::Priority priority=IThreadPool::NORMAL, const DWORD dwMinThreads=0, const DWORD dwMaxThreads=0);
+	// retrieve an IThreadPool interface wrapping the default process pool - do not delete the returned pointer
+	static THREADPOOL_API IThreadPool *getDefaultPool();
 };
 
 

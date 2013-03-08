@@ -5,18 +5,18 @@
 template <class C>
 class IThreadPoolItemImpl : public C
 {
-	IThreadPool *m_pool;
+	class CThreadPool *m_pool;
 public:
 	IThreadPoolItemImpl();
 	IThreadPoolItemImpl(class CThreadPool *p);
 	~IThreadPoolItemImpl();
-	virtual IThreadPool *pool()
+	virtual class CThreadPool *pool()
 	{
 		return m_pool;
 	}
 protected:
 	friend class CThreadPool;
-	virtual void setPool(IThreadPool *p);
+	virtual void setPool(class CThreadPool *p);
 };
 
 

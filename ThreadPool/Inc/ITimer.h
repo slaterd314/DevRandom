@@ -14,6 +14,9 @@ public:
 	virtual void setTimer(const FuncPtr &f)=0;
 	virtual ~ITimer(){}
 	virtual PTP_TIMER handle()=0;
+	virtual bool SetThreadpoolTimer(PFILETIME pftDueTime, DWORD msPeriod, DWORD msWindowLength)=0;
+	virtual bool CloseTimer()=0;
+	virtual void WaitForCallbacks(BOOL bCancelPendingCallbacks)=0;
 };
 
 typedef ::std::shared_ptr<ITimer> ITimerPtr;
