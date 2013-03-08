@@ -46,10 +46,10 @@ public:
 	~CThreadPool();
 	virtual PTP_CALLBACK_ENVIRON env();
 
-	virtual IWorkPtr newWork(const IWork::FuncPtr &f);
-	virtual IWaitPtr newWait(const IWait::FuncPtr &f);
-	virtual ITimerPtr newTimer(const ITimer::FuncPtr &f);
-	virtual IIoCompletionPtr newIoCompletion(HANDLE hIoObject, const IIoCompletion::FuncPtr &f);
+	virtual IWork::Ptr newWork(const IWork::FuncPtr &f);
+	virtual IWait::Ptr newWait(const IWait::FuncPtr &f);
+	virtual ITimer::Ptr newTimer(const ITimer::FuncPtr &f);
+	virtual IIoCompletion::Ptr newIoCompletion(HANDLE hIoObject, const IIoCompletion::FuncPtr &f);
 	template <class C>
 	bool createThreadPoolWork(IWorkImpl<C> *pWork);
 	template <class C>

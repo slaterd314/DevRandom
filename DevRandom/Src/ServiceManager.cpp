@@ -17,7 +17,7 @@ LPCTSTR ServiceManager::lpszServiceName = TEXT("DevRandom");
 LPCTSTR ServiceManager::lpszServiceDescription = TEXT("Random Binary Data Generator");
 SERVICE_STATUS          ServiceManager::gSvcStatus;
 SERVICE_STATUS_HANDLE   ServiceManager::gSvcStatusHandle = NULL;
-IThreadPoolPtr			ServiceManager::pPool;
+IThreadPool::Ptr			ServiceManager::pPool;
 IDevRandomServer::Ptr	ServiceManager::m_Server;
 
 // static

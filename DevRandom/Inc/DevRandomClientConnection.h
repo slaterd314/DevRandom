@@ -17,14 +17,6 @@ class DevRandomClientConnection : public ::std::enable_shared_from_this<DevRando
 		WAIT_CALL,
 		IO_CALL
 	} ;
-	struct lock
-	{
-		SpinLock &m_lock;
-		lock(SpinLock &l) : m_lock(l) { m_lock.acquire(); }
-		~lock() { m_lock.release(); }
-	private:
-		lock &operator=(const lock &) { return *this; }
-	};
 private:
 	// copy & assignment not allowed.
 	DevRandomClientConnection(const DevRandomClientConnection &other);
@@ -32,14 +24,14 @@ private:
 public:
 	typedef ::std::shared_ptr<class DevRandomClientConnection> Ptr;
 
-	DevRandomClientConnection(const IIoCompletionPtr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool);
+	DevRandomClientConnection(const IIoCompletion::Ptr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool);
 	~DevRandomClientConnection();
 	void makeSelfReference();
 
 	static void waitForClientsToStop();
 
 public:
-	static Ptr create(const IIoCompletionPtr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool);
+	static Ptr create(const IIoCompletion::Ptr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool);
 	bool checkWriteFileError();
 	void writeToClient(PTP_CALLBACK_INSTANCE /*Instance*/, IWork * /*pWork*/);
 	void onWriteClientComplete(PTP_CALLBACK_INSTANCE , PVOID /*Overlapped*/, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo);
@@ -52,10 +44,10 @@ private:
 	bool WriteData(const unsigned __int8 *pData, const DWORD &dwDataLength);
 	void closeHandle();
 private:
-	IWorkPtr							m_work;
-	IWorkPtr							m_workStop;
-	IWaitPtr							m_wait;
-	IIoCompletionPtr					m_pio;
+	IWork::Ptr							m_work;
+	IWork::Ptr							m_workStop;
+	IWait::Ptr							m_wait;
+	IIoCompletion::Ptr					m_pio;
 	MyOverlappedPtr						m_olp;
 	Ptr									m_self;
 	LWSpinLock							m_lock;

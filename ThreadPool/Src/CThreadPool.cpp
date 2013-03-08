@@ -165,9 +165,9 @@ CThreadPool::SetThreadpoolWait(HANDLE h, PFILETIME pftTImeout, class IWait *wait
 bool
 CThreadPool::StartThreadpoolIo(class IIoCompletion *pIo)
 {
-	bool bRetVal = (NULL != pIo) && Enabled() && (NULL != pIo->pio());
+	bool bRetVal = (NULL != pIo) && Enabled() && (NULL != pIo->handle());
 	if( bRetVal )
-		::StartThreadpoolIo(pIo->pio());
+		::StartThreadpoolIo(pIo->handle());
 	return bRetVal;
 }
 
@@ -176,7 +176,7 @@ CThreadPool::CancelThreadpoolIo(class IIoCompletion *pIo)
 {
 	bool bRetVal = (pIo && Enabled());
 	if( bRetVal )
-		::CancelThreadpoolIo(pIo->pio());
+		::CancelThreadpoolIo(pIo->handle());
 	return bRetVal;
 }
 
@@ -185,7 +185,7 @@ CThreadPool::CloseThreadpoolIo(class IIoCompletion *pIo)
 {
 	bool bRetVal = (pIo && Enabled());
 	if( bRetVal )
-		::CloseThreadpoolIo(pIo->pio());
+		::CloseThreadpoolIo(pIo->handle());
 	return bRetVal;
 }
 
@@ -331,7 +331,7 @@ CThreadPool::env()
 	return &m_env;
 }
 
-IWorkPtr
+IWork::Ptr
 CThreadPool::newWork(const IWork::FuncPtr &f)
 {
 #ifdef _DEBUG
@@ -349,7 +349,7 @@ CThreadPool::newWork(const IWork::FuncPtr &f)
 	return ::std::static_pointer_cast<IWork>(ptr);
 }
 
-IWaitPtr
+IWait::Ptr
 CThreadPool::newWait(const IWait::FuncPtr &f)
 {
 #ifdef _DEBUG
@@ -367,7 +367,7 @@ CThreadPool::newWait(const IWait::FuncPtr &f)
 	return ::std::static_pointer_cast<IWait>(ptr);
 }
 
-ITimerPtr
+ITimer::Ptr
 CThreadPool::newTimer(const ITimer::FuncPtr &f)
 {
 #ifdef _DEBUG
@@ -386,7 +386,7 @@ CThreadPool::newTimer(const ITimer::FuncPtr &f)
 }
 
 
-IIoCompletionPtr
+IIoCompletion::Ptr
 CThreadPool::newIoCompletion(HANDLE hIoObject, const IIoCompletion::FuncPtr &f)
 {
 #ifdef _DEBUG

@@ -64,7 +64,7 @@ static void WaitForCallbacks()
 
 int RunServer2()
 {
-	IThreadPoolPtr pPool = IThreadPool::newPool(IThreadPool::NORMAL,0,0);
+	IThreadPool::Ptr pPool = IThreadPool::newPool(IThreadPool::NORMAL,0,0);
 	if( pPool )
 	{
 		_CrtMemState state;

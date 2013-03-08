@@ -51,7 +51,7 @@ public:
 	}
 };
 
-DevRandomClientConnection::DevRandomClientConnection(const IIoCompletionPtr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool) :
+DevRandomClientConnection::DevRandomClientConnection(const IIoCompletion::Ptr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool) :
 m_pio(pio),
 m_hPipe(hPipe),
 m_olp(olp),
@@ -169,7 +169,7 @@ DevRandomClientConnection::makeSelfReference()
 
 //static 
 DevRandomClientConnection::Ptr
-DevRandomClientConnection::create(const IIoCompletionPtr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool)
+DevRandomClientConnection::create(const IIoCompletion::Ptr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool)
 {
 #ifdef _DEBUG
 	return ::std::shared_ptr<DevRandomClientConnection>(new DevRandomClientConnection(pio, hPipe, olp, hStopEvent, pPool));

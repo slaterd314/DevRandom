@@ -158,7 +158,7 @@ ListenForDevRandomClient::onConnectClient(PTP_CALLBACK_INSTANCE , PVOID Overlapp
 			pPool = pIo->pool();
 			if( pPool )
 			{
-				IIoCompletionPtr pio = ::std::static_pointer_cast<IIoCompletion>(pIo->shared_from_this());
+				IIoCompletion::Ptr pio = ::std::static_pointer_cast<IIoCompletion>(pIo->shared_from_this());
 				MyOverlappedPtr olp(m_olp);
 				MyOverlapped *pOlp = reinterpret_cast<MyOverlapped *>(Overlapped);
 				bReSubmit = true;

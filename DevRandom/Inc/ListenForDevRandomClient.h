@@ -15,8 +15,8 @@ class ListenForDevRandomClient : public ::std::enable_shared_from_this<ListenFor
 public:
 	typedef ::std::shared_ptr<class ListenForDevRandomClient> Ptr;
 private:
-	IWorkPtr			m_work;
-	IIoCompletionPtr	m_pio;
+	IWork::Ptr			m_work;
+	IIoCompletion::Ptr	m_pio;
 	HANDLE				m_hPipe;
 	MyOverlappedPtr		m_olp;
 	::std::_tstring		m_pipeName;

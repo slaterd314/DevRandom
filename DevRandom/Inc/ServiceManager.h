@@ -29,7 +29,7 @@ private:
 	static SERVICE_STATUS          gSvcStatus; 
 	static SERVICE_STATUS_HANDLE   gSvcStatusHandle; 
 	//static HANDLE                  ghSvcStopEvent;
-	static IThreadPoolPtr			pPool;
+	static IThreadPool::Ptr			pPool;
 	static LPCTSTR			lpszServiceName;
 	static LPCTSTR			lpszServiceDescription;
 	static IDevRandomServer::Ptr m_Server;
