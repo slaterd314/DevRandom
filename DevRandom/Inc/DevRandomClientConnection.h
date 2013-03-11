@@ -26,7 +26,7 @@ public:
 
 	DevRandomClientConnection(const IIoCompletion::Ptr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool);
 	~DevRandomClientConnection();
-	void makeSelfReference();
+	void makeSelfReferent();
 
 	static void waitForClientsToStop();
 
@@ -38,7 +38,6 @@ public:
 	bool runClient();
 	void onWaitSignaled(PTP_CALLBACK_INSTANCE , TP_WAIT_RESULT /*WaitResult*/, IWait * /*pWait*/);
 	void doStop(PTP_CALLBACK_INSTANCE Instance, IWork * pWork);
-	void doStop2(PTP_CALLBACK_INSTANCE Instance, IThreadPool * pPool);
 	void Stop(StopCaller /*caller*/);
 private:
 	bool WriteData(const unsigned __int8 *pData, const DWORD &dwDataLength);

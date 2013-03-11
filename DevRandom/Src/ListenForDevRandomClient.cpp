@@ -52,7 +52,7 @@ ListenForDevRandomClient::shutDownServer()
 }
 
 void
-ListenForDevRandomClient::makeSelfReference()
+ListenForDevRandomClient::makeSelfReferent()
 {
 	// self-reference
 	m_self = shared_from_this();
@@ -170,7 +170,7 @@ ListenForDevRandomClient::onConnectClient(PTP_CALLBACK_INSTANCE , PVOID Overlapp
 
 						if( pClient )
 						{
-							pClient->makeSelfReference();
+							pClient->makeSelfReferent();
 							if( !pClient->runClient() )
 								pClient.reset();
 						}

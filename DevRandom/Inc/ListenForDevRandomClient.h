@@ -9,7 +9,7 @@
 #include "SpinLock.h"
 #include "RandomDataPipeServer.h"
 
-
+/// Named pipe server class. THis object listens for incomming connections to the named pipe.
 class ListenForDevRandomClient : public ::std::enable_shared_from_this<ListenForDevRandomClient>, public IDevRandomServer
 {
 public:
@@ -28,7 +28,7 @@ public:
 	ListenForDevRandomClient(LPCTSTR lpszPipeName, HANDLE hStopEvent, IThreadPool *pPool);
 	~ListenForDevRandomClient();
 	virtual bool runServer();
-	void makeSelfReference();
+	void makeSelfReferent();
 	static Ptr create(LPCTSTR lpszPipeName, HANDLE hStopEvent, IThreadPool *pPool);
 	bool startServer();
 	void listenForClient(PTP_CALLBACK_INSTANCE , IWork *pWork);

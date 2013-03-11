@@ -162,7 +162,7 @@ DevRandomClientConnection::waitForClientsToStop()
 }
 
 void
-DevRandomClientConnection::makeSelfReference()
+DevRandomClientConnection::makeSelfReferent()
 {
 	m_self = this->shared_from_this();	// self-reference - we live in the thread pool 
 }
@@ -333,23 +333,6 @@ DevRandomClientConnection::onWaitSignaled(PTP_CALLBACK_INSTANCE , TP_WAIT_RESULT
 //	ExclusiveLock lock(&m_SRWLock);
 	Stop(WAIT_CALL);// 
 }
-
-void
-DevRandomClientConnection::doStop2(PTP_CALLBACK_INSTANCE Instance, IThreadPool * pPool)
-{
-	closeHandle();
-	{
-		ExclusiveLock lock(&m_SRWLock);
-		if( pPool )
-		{
-			CallbackMayRunLong(Instance);
-			m_work->WaitForCallbacks(TRUE);
-			m_pio->WaitForCallbacks(TRUE);
-		}
-	}
-	m_self.reset();
-}
-
 
 void
 DevRandomClientConnection::doStop(PTP_CALLBACK_INSTANCE Instance, IWork * pWork)
