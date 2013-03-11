@@ -17,7 +17,7 @@ typedef long MACHINE_INT;
 
 #endif
 
-/// processor specific alignment 
+// processor specific alignment 
 #define ALIGN __declspec(align(MEMORY_ALLOCATION_ALIGNMENT))
 
 #if 0
@@ -81,14 +81,16 @@ public:
 };
 #endif
 
-/// Light-weight spin-lock. 
-/// This class is light-weight in the sense that it doesn't call Sleep()
+///<summary>
+/// Light weight spin lock. 
+/// This class is light weight in the sense that it doesn't call Sleep()
 /// or SwitchToThread(). This makes it suitable for use inside a thread pool
-/// thread. Calling Sleep(), SwitchToThread()< or any other wait function in a 
+/// thread. Calling Sleep(), SwitchToThread() or any other wait function in a 
 /// thread pool thread risks a thread pool deadlock where all the pools threads are waiting 
 /// an no threads are available to do work.
 /// This class is also light-weight in the sense that it will only spin for a limited number of times 
 /// before throwing a dead-locked runtime exception. 
+/// </summary>
 class LWSpinLock
 {
 #ifdef _DEBUG

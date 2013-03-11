@@ -56,12 +56,12 @@ public:
 	/// identified by mod ( the module handle ) remains loaded as long as there are outstanding callbacks
 	/// in the thread pool.
 	virtual void SetThreadpoolCallbackLibrary( void *mod)=0;
-	/// notifys the thread pool that callbacks may run for a long time. see MS SetThreadpoolCallbackRunsLong() doc.
+	/// notifies the thread pool that callbacks may run for a long time. see MS SetThreadpoolCallbackRunsLong() doc.
 	virtual void SetThreadpoolCallbackRunsLong()=0;
 
 	/// Create a new Thread pool.
 	/// with the given priority, minimum and maximum number of threads.
-	/// pass dwMinThreads=0 & dwMaxThreads=0 to automatically choose these values based
+	/// pass dwMinThreads=0 and dwMaxThreads=0 to automatically choose these values based
 	/// on your system.
 	static THREADPOOL_API Ptr newPool(const IThreadPool::Priority priority=IThreadPool::NORMAL, const DWORD dwMinThreads=0, const DWORD dwMaxThreads=0);
 	/// retrieve an IThreadPool interface wrapping the processes default thread pool - do not delete the returned pointer

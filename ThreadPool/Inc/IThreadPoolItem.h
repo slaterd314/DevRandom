@@ -4,7 +4,7 @@
 
 #include <memory>
 
-/// Base thread pool item that Work,wait,IoCompletion, & timer 
+/// Base thread pool item that Work wait IoCompletion  and timer 
 /// objects derive from. 
 class
 __declspec(novtable)
