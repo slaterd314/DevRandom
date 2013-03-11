@@ -81,18 +81,6 @@ CThreadPool::Shutdown()
 	memset(&m_env, '\0', sizeof(m_env));
 }
 
-void
-CThreadPool::deleteWorkItem(IWork *&pWork)
-{
-	if( pWork )
-	{
-		// WaitForThreadpoolWorkCallbacks(pWork->handle(), TRUE);
-		CloseThreadpoolWork(pWork);
-		delete pWork;
-		pWork = NULL;
-	}
-}
-
 bool
 CThreadPool::CloseThreadpoolWork(class IWork *work)
 {
@@ -334,10 +322,18 @@ CThreadPool::env()
 IWork::Ptr
 CThreadPool::newWork(const IWork::FuncPtr &f)
 {
+#if 0
 #ifdef _DEBUG
 	::std::shared_ptr<IWorkImpl<IThreadPoolItemImpl<GenericWork> > >  ptr(new IWorkImpl<IThreadPoolItemImpl<GenericWork> >);
 #else
 	::std::shared_ptr<IWorkImpl<IThreadPoolItemImpl<GenericWork> > >  ptr = ::std::make_shared<IWorkImpl<IThreadPoolItemImpl<GenericWork> > >();
+#endif
+#else
+#ifdef _DEBUG
+	::std::shared_ptr<GenericWork>  ptr(new GenericWork);
+#else
+	::std::shared_ptr<GenericWork>  ptr = ::std::make_shared<GenericWork>();
+#endif
 #endif
 	if( ptr )
 	{
@@ -353,9 +349,9 @@ IWait::Ptr
 CThreadPool::newWait(const IWait::FuncPtr &f)
 {
 #ifdef _DEBUG
-	::std::shared_ptr<IWaitImpl<IThreadPoolItemImpl<GenericWait> > >  ptr(new IWaitImpl<IThreadPoolItemImpl<GenericWait> >);
+	::std::shared_ptr<GenericWait>  ptr(new GenericWait);
 #else
-	::std::shared_ptr<IWaitImpl<IThreadPoolItemImpl<GenericWait> > >  ptr = ::std::make_shared<IWaitImpl<IThreadPoolItemImpl<GenericWait> > >();
+	::std::shared_ptr<GenericWait>  ptr = ::std::make_shared<GenericWait>();
 #endif
 	if( ptr )
 	{
@@ -371,9 +367,9 @@ ITimer::Ptr
 CThreadPool::newTimer(const ITimer::FuncPtr &f)
 {
 #ifdef _DEBUG
-	::std::shared_ptr<ITimerImpl<IThreadPoolItemImpl<GenericTimer> > >  ptr(new ITimerImpl<IThreadPoolItemImpl<GenericTimer> >);
+	::std::shared_ptr<GenericTimer>  ptr(new GenericTimer);
 #else
-	::std::shared_ptr<ITimerImpl<IThreadPoolItemImpl<GenericTimer> > >  ptr = ::std::make_shared<ITimerImpl<IThreadPoolItemImpl<GenericTimer> > >();
+	::std::shared_ptr<GenericTimer>  ptr = ::std::make_shared<GenericTimer>();
 #endif
 	if( ptr )
 	{
@@ -390,9 +386,9 @@ IIoCompletion::Ptr
 CThreadPool::newIoCompletion(HANDLE hIoObject, const IIoCompletion::FuncPtr &f)
 {
 #ifdef _DEBUG
-	::std::shared_ptr<IIoCompletionImpl<IThreadPoolItemImpl<GenericIoCompletion> > >  ptr(new IIoCompletionImpl<IThreadPoolItemImpl<GenericIoCompletion> >);
+	::std::shared_ptr<GenericIoCompletion>  ptr(new GenericIoCompletion);
 #else
-	::std::shared_ptr<IIoCompletionImpl<IThreadPoolItemImpl<GenericIoCompletion> > >  ptr = ::std::make_shared<IIoCompletionImpl<IThreadPoolItemImpl<GenericIoCompletion> > >();
+	::std::shared_ptr<GenericIoCompletion>  ptr = ::std::make_shared<GenericIoCompletion>();
 #endif
 	if( ptr )
 	{
@@ -404,18 +400,17 @@ CThreadPool::newIoCompletion(HANDLE hIoObject, const IIoCompletion::FuncPtr &f)
 	return ::std::static_pointer_cast<IIoCompletion>(ptr);
 }
 
-template <class C>
-bool 
-CThreadPool::createThreadPoolWork(IWorkImpl<C> *pWork)
+bool
+CThreadPool::createThreadPoolWork(class GenericWork *pWork)
 {
 	bool bRetVal = false;
 	if( pWork && Enabled())
 	{
-		PVOID Param = reinterpret_cast<PVOID>(static_cast<C *>(pWork));
+		PVOID Param = reinterpret_cast<PVOID>(static_cast<IWork *>(pWork));
 		PTP_WORK ptpWork = ::CreateThreadpoolWork(IWork_callback, Param, env());
 		if( NULL != ptpWork )
 		{
-			pWork->setPtp(ptpWork);
+			pWork->setHandle(ptpWork);
 			bRetVal = true;
 		}
 		else
@@ -424,18 +419,18 @@ CThreadPool::createThreadPoolWork(IWorkImpl<C> *pWork)
 	return bRetVal;
 }
 
-template <class C>
+// template <class C>
 bool
-CThreadPool::createThreadPoolWait(IWaitImpl<C> *pWait)
+CThreadPool::createThreadPoolWait(GenericWait *pWait)
 {
 	bool bRetVal = false;
 	if( pWait && Enabled())
 	{
-		PTP_WAIT ptpWait = ::CreateThreadpoolWait(IWait_callback, reinterpret_cast<PVOID>(pWait), env());
+		PTP_WAIT ptpWait = ::CreateThreadpoolWait(IWait_callback, reinterpret_cast<PVOID>(static_cast<IWait *>(pWait)), env());
 		if( NULL != ptpWait )
 		{
 			bRetVal = true;
-			pWait->setPtp(ptpWait);
+			pWait->setHandle(ptpWait);
 		}
 		else
 			_ftprintf_s(stderr,TEXT("CreateThreadpoolWait failed, GLE=%d.\n"), GetLastError()); 
@@ -443,18 +438,17 @@ CThreadPool::createThreadPoolWait(IWaitImpl<C> *pWait)
 	return bRetVal;
 }
 
-template <class C>
 bool
-CThreadPool::createThreadPoolTimer(ITimerImpl<C> *pTimer)
+CThreadPool::createThreadPoolTimer(GenericTimer *pTimer)
 {
 	bool bRetVal = false;
 	if( pTimer && Enabled())
 	{
-		PTP_TIMER ptpTimer = ::CreateThreadpoolTimer(ITimer_callback, reinterpret_cast<PVOID>(pTimer), env());
+		PTP_TIMER ptpTimer = ::CreateThreadpoolTimer(ITimer_callback, reinterpret_cast<PVOID>(static_cast<ITimer *>(pTimer)), env());
 		if( NULL != ptpTimer )
 		{
 			bRetVal = true;
-			pTimer->setPtp(ptpTimer);
+			pTimer->setHandle(ptpTimer);
 		}
 		else
 			_ftprintf_s(stderr,TEXT("CreateThreadpoolTimer failed, GLE=%d.\n"), GetLastError()); 	
@@ -462,14 +456,13 @@ CThreadPool::createThreadPoolTimer(ITimerImpl<C> *pTimer)
 	return bRetVal;
 }
 
-template <class C>
 bool
-CThreadPool::createThreadPoolIoCompletion(HANDLE hIo, IIoCompletionImpl<C> *pIoCompletion)
+CThreadPool::createThreadPoolIoCompletion(HANDLE hIo, GenericIoCompletion *pIoCompletion)
 {
 	bool bRetVal = false;
 	if( pIoCompletion && Enabled() )
 	{
-		PTP_IO pio = ::CreateThreadpoolIo(hIo, IIoCompletion_callback, (PVOID)(IIoCompletion *)pIoCompletion, env());
+		PTP_IO pio = ::CreateThreadpoolIo(hIo, IIoCompletion_callback, reinterpret_cast<PVOID>(static_cast<IIoCompletion *>(pIoCompletion)), env());
 		if( pio )
 		{
 			bRetVal = true;
@@ -555,34 +548,6 @@ private:
 
 CDefaultThreadPool CDefaultThreadPool::m_defPool;
 
-template<class C>
-IThreadPoolItemImpl<C>::IThreadPoolItemImpl() : m_pool(NULL)
-{
-	TRACE(TEXT(">>>%S::IThreadPoolItemImpl(), this=0x%x.\n"), typeid(*this).name() , this); 
-}
-
-template<class C>
-IThreadPoolItemImpl<C>::IThreadPoolItemImpl(class CThreadPool *p) : m_pool(p)
-{
-	TRACE(TEXT(">>>%S::IThreadPoolItemImpl(p), this=0x%x.\n"), typeid(*this).name() , this); 
-	p->insertItem(this);
-}
-template<class C>
-IThreadPoolItemImpl<C>::~IThreadPoolItemImpl()
-{
-	TRACE(TEXT("<<<%S::~IThreadPoolItemImpl(), this=0x%x.\n"), typeid(*this).name() , this); 
-	static_cast<CThreadPool *>(pool())->removeItem(this);
-}
-template<class C>
-void
-IThreadPoolItemImpl<C>::setPool(CThreadPool *p)
-{
-	if( m_pool == NULL )
-	{
-		static_cast<CThreadPool *>(p)->insertItem(this);
-		m_pool = p;
-	}
-}
 
 THREADPOOL_API
 ::std::shared_ptr<IThreadPool>

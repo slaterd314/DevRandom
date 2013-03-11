@@ -45,18 +45,6 @@
     <ClInclude Include="IncI\IThreadPoolItemImpl.h">
       <Filter>IncI</Filter>
     </ClInclude>
-    <ClInclude Include="IncI\IIoCompletionImpl.h">
-      <Filter>IncI</Filter>
-    </ClInclude>
-    <ClInclude Include="IncI\IWorkImpl.h">
-      <Filter>IncI</Filter>
-    </ClInclude>
-    <ClInclude Include="IncI\ITimerImpl.h">
-      <Filter>IncI</Filter>
-    </ClInclude>
-    <ClInclude Include="IncI\IWaitImpl.h">
-      <Filter>IncI</Filter>
-    </ClInclude>
     <ClInclude Include="IncI\CThreadPool.h">
       <Filter>IncI</Filter>
     </ClInclude>
@@ -78,6 +66,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Src\CThreadPool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\GenericWork.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\GenericWait.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\GenericTimer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\GenericIoCompletion.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

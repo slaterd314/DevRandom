@@ -4,26 +4,20 @@
 
 #include "IWait.h"
 #include <functional>
+#include "IThreadPoolItemImpl.h"
 
-class GenericWait : public IWait
+class GenericWait : public IThreadPoolItemImpl<IWait>
 {
+	typedef IThreadPoolItemImpl<IWait> super;
 	FuncPtr m_func;
 public:
-	GenericWait() : m_func([](PTP_CALLBACK_INSTANCE , TP_WAIT_RESULT , IWait *){})
-	{
-	}
-	GenericWait(const FuncPtr &func) : m_func(func)
-	{
-	}
-	
-	virtual void Execute(PTP_CALLBACK_INSTANCE Instance, TP_WAIT_RESULT WaitResult)
-	{
-		m_func(Instance,WaitResult, this);
-	}
-	void setWait(const FuncPtr &func)
-	{
-		m_func = func;
-	}
+	GenericWait();
+	virtual void Execute(PTP_CALLBACK_INSTANCE Instance, TP_WAIT_RESULT WaitResult);
+	void setWait(const FuncPtr &func);
+	virtual PTP_WAIT handle();
+	virtual bool SetThreadpoolWait(HANDLE h, PFILETIME pftTimeout);
+	virtual bool CloseWait();
+	virtual void WaitForCallbacks(BOOL bCancelPendingCallbacks);
 };
 
 #endif // __GENERICWAIT_H__

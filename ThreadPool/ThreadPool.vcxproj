@@ -156,11 +156,7 @@
     <ClInclude Include="IncI\GenericTimer.h" />
     <ClInclude Include="IncI\GenericWait.h" />
     <ClInclude Include="IncI\GenericWork.h" />
-    <ClInclude Include="IncI\IIoCompletionImpl.h" />
     <ClInclude Include="IncI\IThreadPoolItemImpl.h" />
-    <ClInclude Include="IncI\ITimerImpl.h" />
-    <ClInclude Include="IncI\IWaitImpl.h" />
-    <ClInclude Include="IncI\IWorkImpl.h" />
     <ClInclude Include="IncI\stdafx.h" />
     <ClInclude Include="Inc\IIoCompletion.h" />
     <ClInclude Include="Inc\IThreadPool.h" />
@@ -172,6 +168,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Src\CThreadPool.cpp" />
+    <ClCompile Include="Src\GenericIoCompletion.cpp" />
+    <ClCompile Include="Src\GenericTimer.cpp" />
+    <ClCompile Include="Src\GenericWait.cpp" />
+    <ClCompile Include="Src\GenericWork.cpp" />
     <ClCompile Include="Src\stdafx.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

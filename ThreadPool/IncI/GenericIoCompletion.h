@@ -4,30 +4,22 @@
 
 #include "IIoCompletion.h"
 #include <functional>
+#include "IThreadPoolItemImpl.h"
 
-class GenericIoCompletion : public IIoCompletion
+class GenericIoCompletion : public IThreadPoolItemImpl<IIoCompletion>
 {
+	typedef IThreadPoolItemImpl<IIoCompletion> super;
 	FuncPtr m_func;
 public:
-	GenericIoCompletion() : m_func([](PTP_CALLBACK_INSTANCE , PVOID, ULONG, ULONG_PTR, IIoCompletion *){})
-	{
-	}
-	GenericIoCompletion(const FuncPtr &func) : m_func(func)
-	{
-	}
-	
-	virtual void OnComplete(PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered)
-	{
-		m_func(Instance,Overlapped,IoResult,nBytesTransfered,this);
-	}
-	void setIoComplete(const FuncPtr &func)
-	{
-		DoSetIoComplete(func);
-	}
-	void DoSetIoComplete(const FuncPtr &func)
-	{
-		m_func = func;
-	}
+	GenericIoCompletion();
+	virtual void OnComplete(PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered);
+	void setIoComplete(const FuncPtr &func);
+	virtual void setPio(PTP_IO p);
+	virtual PTP_IO handle();
+	virtual bool StartIo();
+	virtual bool CloseIo();
+	virtual bool CancelIo();
+	virtual void WaitForCallbacks(BOOL bCancelPendingCallbacks);
 };
 
 #endif // __GENERICIOCOMPLETION_H__

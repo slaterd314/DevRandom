@@ -8,10 +8,6 @@
 #include "IIoCompletion.h"
 #include "ITimer.h"
 #include "IThreadPoolItemImpl.h"
-#include "IIoCompletionImpl.h"
-#include "IWorkImpl.h"
-#include "IWaitImpl.h"
-#include "ITimerImpl.h"
 #include "SpinLock.h"
 
 class CThreadPool : public IThreadPool
@@ -24,7 +20,6 @@ public:
 
 	virtual bool Enabled();
 	virtual void Shutdown();
-	virtual void deleteWorkItem(IWork *&pWork);
 	bool CloseThreadpoolWork(IWork *work);
 	virtual bool CloseThreadpoolWait(IWait *wait);
 	bool SetThreadpoolWait(IWait *wait, HANDLE h, PFILETIME pftTimeout);
@@ -50,14 +45,11 @@ public:
 	virtual IWait::Ptr newWait(const IWait::FuncPtr &f);
 	virtual ITimer::Ptr newTimer(const ITimer::FuncPtr &f);
 	virtual IIoCompletion::Ptr newIoCompletion(HANDLE hIoObject, const IIoCompletion::FuncPtr &f);
-	template <class C>
-	bool createThreadPoolWork(IWorkImpl<C> *pWork);
-	template <class C>
-	bool createThreadPoolWait(IWaitImpl<C> *pWait);
-	template <class C>
-	bool createThreadPoolTimer(ITimerImpl<C> *pTimer);
-	template <class C>
-	bool createThreadPoolIoCompletion(HANDLE hIo, IIoCompletionImpl<C> *pIoCompletion);
+	bool createThreadPoolWork(class GenericWork *pWork);
+	bool createThreadPoolWait(class GenericWait *pWait);
+	bool createThreadPoolTimer(class GenericTimer *pTimer);
+	bool createThreadPoolIoCompletion(HANDLE hIo, class GenericIoCompletion *pIoCompletion);
+	
 
 	static VOID CALLBACK IWork_callback(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK /*Work*/);
 	static VOID CALLBACK IWait_callback(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT /*Wait*/, TP_WAIT_RESULT WaitResult);

@@ -2,27 +2,22 @@
 #ifndef __GENERICTIMER_H__
 #define __GENERICTIMER_H__
 
+
+#include "IThreadPoolItemImpl.h"
 #include "ITimer.h"
 
-class GenericTimer : public ITimer
+class GenericTimer : public IThreadPoolItemImpl<ITimer>
 {
+	typedef IThreadPoolItemImpl<ITimer> super;
 	FuncPtr m_func;
 public:
-	GenericTimer() : m_func([](PTP_CALLBACK_INSTANCE, ITimer *){})
-	{
-	}
-	GenericTimer(const FuncPtr &func) : m_func(func)
-	{
-	}
-	
-	virtual void Execute(PTP_CALLBACK_INSTANCE Instance)
-	{
-		m_func(Instance,this);
-	}
-	void setTimer(const FuncPtr &func)
-	{
-		m_func = func;
-	}
+	GenericTimer();
+	virtual void Execute(PTP_CALLBACK_INSTANCE Instance);
+	void setTimer(const FuncPtr &func);
+	virtual PTP_TIMER handle();
+	virtual bool SetThreadpoolTimer(PFILETIME pftDueTime, DWORD msPeriod, DWORD msWindowLength);
+	virtual bool CloseTimer();
+	virtual void WaitForCallbacks(BOOL bCancelPendingCallbacks);
 };
 
 #endif // __GENERICTIMER_H__
