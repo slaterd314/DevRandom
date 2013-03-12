@@ -90,7 +90,7 @@ ListenForDevRandomClient::listenForClient(PTP_CALLBACK_INSTANCE , IWork *pWork)
 						PIPE_TYPE_MESSAGE|PIPE_WAIT,
 						PIPE_UNLIMITED_INSTANCES,
 						MyOverlapped::BUFSIZE,
-						MyOverlapped::BUFSIZE,
+						0,
 						0,
 						NULL);
 		if( INVALID_HANDLE_VALUE == m_hPipe )

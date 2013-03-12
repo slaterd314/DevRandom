@@ -27,20 +27,24 @@ public:
 void
 CThreadPool::insertItem(IThreadPoolItem *pItem)
 {
+#ifdef TRACK_THREADPOOL_ITEMS
 	// protect access to the hash table
 	LWSpinLocker lock(m_lock);
 	if( !m_items )
 		m_items.reset(new ::std::hash_set<IThreadPoolItem *>);
 	m_items->insert(pItem);
+#endif // TRACK_THREADPOOL_ITEMS
 }
 
 void
 CThreadPool::removeItem(IThreadPoolItem *pItem)
 {
+#ifdef TRACK_THREADPOOL_ITEMS
 	LWSpinLocker lock(m_lock);
 	m_items->erase(pItem);
 	if( m_items->size() == 0 )
 		m_items.reset();
+#endif // TRACK_THREADPOOL_ITEMS
 }
 
 DWORD
@@ -287,6 +291,7 @@ CThreadPool::~CThreadPool()
 {
 	InterlockedCompareExchange(&m_bEnabled,FALSE,TRUE);
 
+#ifdef TRACK_THREADPOOL_ITEMS
 #ifdef _DEBUG
 	if( m_items && m_items->size() > 0 )
 	{
@@ -296,6 +301,7 @@ CThreadPool::~CThreadPool()
 		});
 	}
 #endif // _DEBUG
+#endif
 	if( env() )
 	{
 		if( env()->CleanupGroup )

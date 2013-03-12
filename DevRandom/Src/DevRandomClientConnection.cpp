@@ -55,10 +55,7 @@ DevRandomClientConnection::DevRandomClientConnection(const IIoCompletion::Ptr &p
 m_pio(pio),
 m_hPipe(hPipe),
 m_olp(olp),
-m_asyncIo(false),
-m_asyncWork(false),
-m_stop(false),
-m_nOutStandingIoOps(0)
+m_stop(false)
 {
 	InitializeSRWLock(&m_SRWLock);
 	interlockedIncrement(&m_nActiveClients);
@@ -92,26 +89,18 @@ m_nOutStandingIoOps(0)
 
 DevRandomClientConnection::~DevRandomClientConnection()
 {
-	//lock locked(m_lock);
-	//ExclusiveLock lock(&m_SRWLock);
 	IThreadPool *pPool = m_pio ? m_pio->pool() : (m_work ? m_work->pool() : NULL) ;
 	if( pPool && pPool->Enabled() )
 	{
 		if( m_work)
-		{
-			//::WaitForThreadpoolWorkCallbacks(m_work->handle(), TRUE);
 			m_work->CloseWork();
-		}
+
 		if( m_pio )
-		{
-			//::WaitForThreadpoolIoCallbacks(m_pio->handle(), FALSE);
 			m_pio->CloseIo();
-		}
+
 		if( m_wait )
-		{
-			//::WaitForThreadpoolWaitCallbacks(m_wait->handle(),TRUE);
 			m_wait->CloseWait();
-		}				
+
 	}
 
 	if( m_work )
@@ -218,7 +207,6 @@ DevRandomClientConnection::WriteData(const unsigned __int8 *pData, const DWORD &
 				bRetVal = m_pio->StartIo();
 				if( bRetVal )
 				{
-					m_asyncIo = true;
 					DWORD cbWritten = 0;
 					BOOL fSuccess = WriteFile( 
 								m_hPipe,        // handle to pipe 
@@ -231,7 +219,6 @@ DevRandomClientConnection::WriteData(const unsigned __int8 *pData, const DWORD &
 					if( !fSuccess )
 					{
 						bRetVal = false;
-						m_asyncIo = false;
 						_ftprintf_s(stderr,TEXT("WriteFile() failed, GLE=%d.\n"), GetLastError());
 						m_pio->CancelIo();
 					}
@@ -248,7 +235,7 @@ DevRandomClientConnection::WriteData(const unsigned __int8 *pData, const DWORD &
 		}
 		else
 		{
-			TRACE(TEXT("WriteData(): m_lock is locked\n"));
+			TRACE(TEXT("WriteData(): bad pipe handle\n"));
 		}
 	}
 	else
@@ -261,33 +248,28 @@ DevRandomClientConnection::WriteData(const unsigned __int8 *pData, const DWORD &
 void
 DevRandomClientConnection::writeToClient(PTP_CALLBACK_INSTANCE /*Instance*/, IWork * /*pWork*/)
 {
-	//lock locked(m_lock);
 	if( !m_stop )
 	{
-		m_asyncWork = false;
-		//SharedLock lock(&m_SRWLock);
-		//if( lock.locked() )
+		bool bKeepWriting = true;
+
+		unsigned __int8 *pWritePtr = m_olp->buffer;
+		m_olp->swapBuffers();
+		unsigned __int8 *pGeneratePtr = m_olp->buffer;
+
+		if( !WriteData(pWritePtr, MyOverlapped::BUFSIZE) )
 		{
-			bool bKeepWriting = true;
-
-			unsigned __int8 *pWritePtr = m_olp->buffer;
-			m_olp->swapBuffers();
-			unsigned __int8 *pGeneratePtr = m_olp->buffer;
-
-			if( !WriteData(pWritePtr, MyOverlapped::BUFSIZE) )
-			{
-				bKeepWriting = false;
-			}
-			else if( FALSE == RtlGenRandom(pGeneratePtr, MyOverlapped::BUFSIZE) )
-			{
-				bKeepWriting = false;
-			}
-
-			if( !bKeepWriting  )
-			{
-				Stop(WORK_CALL);
-			}
+			bKeepWriting = false;
 		}
+		else if( FALSE == RtlGenRandom(pGeneratePtr, MyOverlapped::BUFSIZE) )
+		{
+			bKeepWriting = false;
+		}
+
+		if( !bKeepWriting  )
+		{
+			Stop(WORK_CALL);
+		}
+
 	}
 }
 
@@ -296,22 +278,18 @@ DevRandomClientConnection::onWriteClientComplete(PTP_CALLBACK_INSTANCE , PVOID /
 {
 	if( !m_stop )
 	{
-		m_asyncIo = false;
 		SharedLock lock(&m_SRWLock);
 		if( lock.locked() )
 		{
 			if( NO_ERROR == IoResult )
 			{
-				//lock locked(m_lock);
-				m_asyncWork = true;
 				if( !m_work->SubmitWork() )
 				{
-					Stop(IO_CALL);// m_self.reset();
-					m_asyncWork = false;
+					Stop(IO_CALL);
 				}
 			}
 			else
-				Stop(IO_CALL);// m_self.reset();
+				Stop(IO_CALL);
 		}
 	}
 }
@@ -354,7 +332,7 @@ DevRandomClientConnection::doStop(PTP_CALLBACK_INSTANCE Instance, IWork * pWork)
 void
 DevRandomClientConnection::Stop(StopCaller /*caller*/)
 {
-	if( interlockedCompareExchange(&m_stop,1,0) == 0 )
+	if( interlockedExchange(&m_stop,1) == 0 )
 	{
 		IThreadPool *pPool = (m_work ? m_work->pool() : (m_pio ? m_pio->pool() : NULL));
 		if( pPool )

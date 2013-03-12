@@ -51,11 +51,7 @@ private:
 	Ptr									m_self;
 	LWSpinLock							m_lock;
 	HANDLE								m_hPipe;
-	ALIGN MACHINE_INT					m_stop;
-	ALIGN MACHINE_INT					m_nOutStandingIoOps;	
-	bool								m_asyncIo;
-	bool								m_asyncWork;
-	
+	volatile ALIGN MACHINE_INT			m_stop;
 	static volatile ALIGN MACHINE_INT	m_nActiveClients;
 	SRWLOCK								m_SRWLock;
 };
