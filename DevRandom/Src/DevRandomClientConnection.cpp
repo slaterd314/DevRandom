@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "DevRandomClientConnection.h"
+#include "SpinLock.h"
 
 volatile ALIGN MACHINE_INT DevRandomClientConnection::m_nActiveClients = 0;
 
@@ -23,16 +24,39 @@ public:
 class ExclusiveLock
 {
 	PSRWLOCK m_pLock;
+	DECLARE_TIME_ACQUIRE_LOCK();
 public:
 	ExclusiveLock(PSRWLOCK pLock) : m_pLock(pLock)
 	{
+		BEGIN_TIME_ACQUIRE_LOCK();
 		AcquireSRWLockExclusive(m_pLock);
+		END_TIME_ACQUIRE_LOCK();
 	}
 	~ExclusiveLock()
 	{
 		ReleaseSRWLockExclusive(m_pLock);
 	}
 };
+
+
+#ifdef TRACK_SPIN_COUNTS
+static
+class Max_ExclusiveLock_Report
+{
+public:
+	Max_ExclusiveLock_Report() {}
+	~Max_ExclusiveLock_Report()
+	{
+		//TRACE(TEXT("LWSpinLock max iterations executed was: %d\n"), LWSpinLock::MaxIter());
+		TCHAR buffer[2048];
+		_stprintf_s(buffer,TEXT("ExclusiveLock max lock cycles count executed was:\t%I64u\nTotal cycles spent waiting was:\t\t\t%I64u\nAverage Cycles spent waiting was:\t\t\t%I64u\n"), ExclusiveLock::MaxDt(), ExclusiveLock::Sum(), ExclusiveLock::Sum() / ExclusiveLock::Calls() );
+		::OutputDebugString(buffer);
+//		_stprintf_s(buffer,TEXT("LWTrySpinLocker max lock cycles count executed was:\t%I64u\nTotal cycles spent spinning was:\t\t%I64u\nAverage Cycles spent spinning was:%I64u\n"), LWTrySpinLocker::MaxDt(), LWTrySpinLocker::Sum(), LWTrySpinLocker::Sum() / LWTrySpinLocker::Calls() );
+//		::OutputDebugString(buffer);
+	}
+}_____fooReportIt;
+#endif
+
 
 class TryExclusiveLock
 {
@@ -51,8 +75,7 @@ public:
 	}
 };
 
-DevRandomClientConnection::DevRandomClientConnection(const IIoCompletion::Ptr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool) :
-m_pio(pio),
+DevRandomClientConnection::DevRandomClientConnection(HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool) :
 m_hPipe(hPipe),
 m_olp(olp),
 m_stop(false)
@@ -67,7 +90,7 @@ m_stop(false)
 	if( !m_work )
 		throw ::std::runtime_error("DevRandomClientConnection::DevRandomClientConnection() - newWork() failed");
 
-	m_pio->setIoComplete([&](PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered, IIoCompletion *pIo){
+	m_pio = pPool->newIoCompletion(hPipe, [&](PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered, IIoCompletion *pIo){
 		onWriteClientComplete(Instance, Overlapped, IoResult, nBytesTransfered, pIo);
 	});
 
@@ -158,12 +181,12 @@ DevRandomClientConnection::makeSelfReferent()
 
 //static 
 DevRandomClientConnection::Ptr
-DevRandomClientConnection::create(const IIoCompletion::Ptr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool)
+DevRandomClientConnection::create(HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool)
 {
 #ifdef _DEBUG
-	return ::std::shared_ptr<DevRandomClientConnection>(new DevRandomClientConnection(pio, hPipe, olp, hStopEvent, pPool));
+	return ::std::shared_ptr<DevRandomClientConnection>(new DevRandomClientConnection(hPipe, olp, hStopEvent, pPool));
 #else
-	return ::std::make_shared<DevRandomClientConnection>(pio, hPipe, olp, hStopEvent, pPool);
+	return ::std::make_shared<DevRandomClientConnection>(hPipe, olp, hStopEvent, pPool);
 #endif
 }
 
@@ -185,10 +208,10 @@ DevRandomClientConnection::checkWriteFileError()
 void
 DevRandomClientConnection::closeHandle()
 {
-	ExclusiveLock lock(&m_SRWLock);
 	if( m_hPipe != INVALID_HANDLE_VALUE )
 	{
-		CloseHandle(m_hPipe);
+		DisconnectNamedPipe(m_hPipe);	// dis-connect the client
+		CloseHandle(m_hPipe);			// close the handle
 		m_hPipe = INVALID_HANDLE_VALUE;
 	}
 }
@@ -315,9 +338,9 @@ DevRandomClientConnection::onWaitSignaled(PTP_CALLBACK_INSTANCE , TP_WAIT_RESULT
 void
 DevRandomClientConnection::doStop(PTP_CALLBACK_INSTANCE Instance, IWork * pWork)
 {
-	closeHandle();
 	{
 		ExclusiveLock lock(&m_SRWLock);
+		closeHandle();
 		if( pWork && pWork->pool() )
 		{
 			CallbackMayRunLong(Instance);

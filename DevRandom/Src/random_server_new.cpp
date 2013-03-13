@@ -49,7 +49,7 @@ int _tmain(int argc, TCHAR **argv)
 	return 0;
 }
 
-static void WaitForCallbacks()
+static void WaitForCallbacks(IDevRandomServer::Ptr &pServer)
 {
 	TCHAR buf[32] = {0};
 	for(;;)
@@ -58,6 +58,8 @@ static void WaitForCallbacks()
 		LPCTSTR lpsz = _getws_s(buf);
 		if( 0 == _tcsicmp(lpsz, TEXT("quit")) )
 			break;
+		else if( 0 == _tcsicmp(lpsz, TEXT("check")) )
+			pServer->CheckHandle();
 	}
 }
 
@@ -76,7 +78,7 @@ int RunServer2()
 			{
 				if( pServer->runServer() )
 				{
-					WaitForCallbacks();
+					WaitForCallbacks(pServer);
 					pServer->shutDownServer();
 				}
 			}
@@ -86,3 +88,4 @@ int RunServer2()
 	
 	return 0;
 }
+

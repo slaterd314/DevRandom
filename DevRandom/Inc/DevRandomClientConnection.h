@@ -24,14 +24,14 @@ private:
 public:
 	typedef ::std::shared_ptr<class DevRandomClientConnection> Ptr;
 
-	DevRandomClientConnection(const IIoCompletion::Ptr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool);
+	DevRandomClientConnection(HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool);
 	~DevRandomClientConnection();
 	void makeSelfReferent();
 
 	static void waitForClientsToStop();
 
 public:
-	static Ptr create(const IIoCompletion::Ptr &pio, HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool);
+	static Ptr create(HANDLE hPipe, const MyOverlappedPtr &olp, HANDLE hStopEvent, IThreadPool *pPool);
 	bool checkWriteFileError();
 	void writeToClient(PTP_CALLBACK_INSTANCE /*Instance*/, IWork * /*pWork*/);
 	void onWriteClientComplete(PTP_CALLBACK_INSTANCE , PVOID /*Overlapped*/, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo);

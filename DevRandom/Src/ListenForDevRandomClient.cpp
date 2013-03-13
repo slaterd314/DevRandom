@@ -43,9 +43,9 @@ ListenForDevRandomClient::shutDownServer()
 	{
 		CancelIoEx(m_hPipe, m_olp.get());
 		m_hPipe = INVALID_HANDLE_VALUE;
-		m_pio->WaitForCallbacks(TRUE);
+		// m_pio->WaitForCallbacks(TRUE);
 		m_work->WaitForCallbacks(TRUE);
-		m_pio->CloseIo();
+		// m_pio->CloseIo();
 		m_work->CloseWork();
 		CloseHandle(m_hPipe);
 	}
@@ -78,6 +78,58 @@ ListenForDevRandomClient::startServer()
 }
 
 void
+ListenForDevRandomClient::CheckHandle()
+{
+	if( INVALID_HANDLE_VALUE != m_hPipe )
+	{
+		DWORD dwState = 0;
+		DWORD dwCurInstance=0;
+		DWORD dwMaxCollectionCount = 0;
+		DWORD dwCollectionDataTimeout = 0;
+		TCHAR UserName[1024];
+
+		BOOL bRet = GetNamedPipeHandleState(m_hPipe,&dwState, &dwCurInstance, &dwMaxCollectionCount, &dwCollectionDataTimeout, NULL, 0);
+		if( !bRet )
+		{
+			_ftprintf_s(stderr,TEXT("GetNamedPipeHandleState failed, GLE=%d.\n"), GetLastError()); 
+		}
+		else
+		{
+			_ftprintf_s(stderr,TEXT("GetNamedPipeHandleState returned:\nState:%d\nCurInstances:%d\nMaxCollectionCount:%d\nCollectionDataTimeout:%d\nUserName:%s\n"),
+				dwState, dwCurInstance, dwMaxCollectionCount, dwCollectionDataTimeout, TEXT(""));
+		}
+
+		DWORD dwFlags = 0;
+		DWORD dwOutBufSize=0;
+		DWORD dwInBufSize = 0;
+		DWORD dwMaxInstances = 0;
+
+		bRet = GetNamedPipeInfo(m_hPipe, &dwFlags, &dwOutBufSize, &dwInBufSize, &dwMaxInstances);
+
+		if( bRet )
+		{
+			_ftprintf_s(stderr,TEXT("GetNamedPipeInfo returned:\nFlags:%d\nOutBufferSize:%d\nInBufferSize:%d\nMaxInstances:%d\n"),
+				dwFlags, dwOutBufSize, dwInBufSize, dwMaxInstances);
+		}
+		else
+		{
+			_ftprintf_s(stderr,TEXT("GetNamedPipeInfo failed, GLE=%d.\n"), GetLastError()); 
+		}
+
+		DWORD dwNumBytes = 0;
+		if( GetOverlappedResult(m_hPipe, m_olp.get(), &dwNumBytes, FALSE) )
+		{
+			_ftprintf_s(stderr,TEXT("GetOverlappedResult returned TRUE.\n"));
+		}
+		else if( ERROR_IO_PENDING == GetLastError() )
+		{
+			;
+		}
+
+	}
+}
+
+void
 ListenForDevRandomClient::listenForClient(PTP_CALLBACK_INSTANCE , IWork *pWork)
 {
 	TRACE(TEXT(">>>ListenForDevRandomClient::listenForClient() enter\n")); 
@@ -86,7 +138,7 @@ ListenForDevRandomClient::listenForClient(PTP_CALLBACK_INSTANCE , IWork *pWork)
 		IThreadPool *pPool = pWork->pool();
 			
 		m_hPipe = CreateNamedPipe(m_pipeName.c_str(),
-						PIPE_ACCESS_OUTBOUND|FILE_FLAG_OVERLAPPED,
+						PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED,
 						PIPE_TYPE_MESSAGE|PIPE_WAIT,
 						PIPE_UNLIMITED_INSTANCES,
 						MyOverlapped::BUFSIZE,
@@ -105,33 +157,27 @@ ListenForDevRandomClient::listenForClient(PTP_CALLBACK_INSTANCE , IWork *pWork)
 			if( m_olp->hEvent )
 			{
 				if( RtlGenRandom(m_olp->buffer, MyOverlapped::BUFSIZE) )
-				{		
-					m_pio = pPool->newIoCompletion(m_hPipe, [&](PTP_CALLBACK_INSTANCE Instance, PVOID Overlapped, ULONG IoResult, ULONG_PTR nBytesTransfered, IIoCompletion *pIo){
-						onConnectClient(Instance, Overlapped, IoResult, nBytesTransfered, pIo);
+				{
+					m_wait = pPool->newWait([&](PTP_CALLBACK_INSTANCE Instance, TP_WAIT_RESULT Result, IWait *pWait){
+						onConnectEventSignaled(Instance, Result, pWait);
 					});
 					
-					if( m_pio )
+					if( m_wait )
 					{
-						if( m_pio->StartIo() )
+						m_wait->SetThreadpoolWait(m_olp->hEvent,NULL);
+						BOOL fConnected = ConnectNamedPipe(m_hPipe, m_olp.get());	// asynchronous ConnectNamedPipe() call - this call will return immediately
+																			// and the Io completion routine will be called when a client connects.
+						if( !fConnected )
 						{
-							BOOL fConnected = ConnectNamedPipe(m_hPipe, m_olp.get());	// asynchronous ConnectNamedPipe() call - this call will return immediately
-																				// and the Io completion routine will be called when a client connects.
-							if( !fConnected )
-							{
-								if( GetLastError() == ERROR_IO_PENDING || GetLastError() == ERROR_PIPE_CONNECTED )
-									fConnected = TRUE;
-							}
-							if( !fConnected )
-							{
-								_ftprintf_s(stderr, TEXT("ConnectNamedPipe failed. GLE=%d\n"), GetLastError());
-								m_pio->CancelIo();	// prevent a memory leak if ConnectNamedPipe() fails.
-							}
+							if( GetLastError() == ERROR_IO_PENDING || GetLastError() == ERROR_PIPE_CONNECTED )
+								fConnected = TRUE;
 						}
-						else
-							_ftprintf_s(stderr, TEXT("m_pio->StartIo() failed. GLE=%d\n"), GetLastError());
+						if( !fConnected )
+						{
+							_ftprintf_s(stderr, TEXT("ConnectNamedPipe failed. GLE=%d\n"), GetLastError());
+							m_wait->WaitForCallbacks(TRUE);
+						}
 					}
-					else
-						_ftprintf_s(stderr, TEXT("newIoCompletion failed. GLE=%d\n"), GetLastError());
 				}
 				else
 					_ftprintf_s(stderr, TEXT("RtlGenRandom failed. GLE=%d\n"), GetLastError());
@@ -143,50 +189,36 @@ ListenForDevRandomClient::listenForClient(PTP_CALLBACK_INSTANCE , IWork *pWork)
 	TRACE(TEXT("<<<ListenForDevRandomClient::listenForClient() exit\n")); 
 }
 
-
 void
-ListenForDevRandomClient::onConnectClient(PTP_CALLBACK_INSTANCE , PVOID Overlapped, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo)
+ListenForDevRandomClient::onConnectEventSignaled(PTP_CALLBACK_INSTANCE /*Instance*/, TP_WAIT_RESULT /*Result*/, IWait *pWait)
 {
-	TRACE(TEXT(">>>ListenForDevRandomClient::onConnectClient() enter\n")); 
+	TRACE(TEXT(">>>ListenForDevRandomClient::onConnectEventSignaled() enter\n"));
 	IThreadPool *pPool = NULL;
 	bool bReSubmit = false;
 
 	if( !m_stop )
 	{
-		if( pIo )
+		if( pWait )
 		{
-			pPool = pIo->pool();
+			pPool = pWait->pool();
 			if( pPool )
 			{
-				IIoCompletion::Ptr pio = ::std::static_pointer_cast<IIoCompletion>(pIo->shared_from_this());
 				MyOverlappedPtr olp(m_olp);
-				MyOverlapped *pOlp = reinterpret_cast<MyOverlapped *>(Overlapped);
 				bReSubmit = true;
-				if( pOlp )
+				DevRandomClientConnection::Ptr pClient = DevRandomClientConnection::create(m_hPipe, olp, m_hStopEvent, pPool);
+
+				if( pClient )
 				{
-					if( NO_ERROR == IoResult)
-					{
-						DevRandomClientConnection::Ptr pClient = DevRandomClientConnection::create(pio, m_hPipe, olp, m_hStopEvent, pPool);
-
-						if( pClient )
-						{
-							pClient->makeSelfReferent();
-							if( !pClient->runClient() )
-								pClient.reset();
-						}
-					}
-					else
-						_ftprintf_s(stderr, TEXT("ListenForDevRandomClient::onConnectClient IoResult == %d\n"), IoResult);
-
+					pClient->makeSelfReferent();
+					if( !pClient->runClient() )
+						pClient.reset();
 				}
-				else
-					_ftprintf_s(stderr, TEXT("ListenForDevRandomClient::onConnectClient pOlp == NULL \n"));
 			}
 			else
-				_ftprintf_s(stderr, TEXT("ListenForDevRandomClient::onConnectClient pPool == NULL \n"));
+				_ftprintf_s(stderr, TEXT("ListenForDevRandomClient::onConnectEventSignaled pPool == NULL \n"));
 		}
 		else
-			_ftprintf_s(stderr, TEXT("ListenForDevRandomClient::onConnectClient pIo == NULL \n"));
+			_ftprintf_s(stderr, TEXT("ListenForDevRandomClient::onConnectEventSignaled pWait == NULL \n"));
 
 		TRACE(TEXT(">>>ListenForDevRandomClient::onConnectClient() exit\n")); 
 		if( pPool && bReSubmit )
@@ -200,5 +232,7 @@ ListenForDevRandomClient::onConnectClient(PTP_CALLBACK_INSTANCE , PVOID Overlapp
 				}
 			}
 		}
+
 	}
 }
+

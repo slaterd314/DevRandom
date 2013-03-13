@@ -14,6 +14,7 @@
 
 
 #ifdef TRACK_SPIN_COUNTS
+static
 class Max_LWSpinLock_Report
 {
 public:
@@ -22,12 +23,12 @@ public:
 	{
 		//TRACE(TEXT("LWSpinLock max iterations executed was: %d\n"), LWSpinLock::MaxIter());
 		TCHAR buffer[2048];
-		_stprintf_s(buffer,TEXT("LWSpinLock max iterations executed was: %d\n"), LWSpinLock::MaxIter());
+		_stprintf_s(buffer,TEXT("LWSpinLock max iterations executed was:\t\t\t%I64u\nTotal iterations was:\t\t\t\t\t%I64u\nAverage Iterations was:\t\t\t\t\t%I64u\n"), LWSpinLock::MaxDt(), LWSpinLock::Sum(), LWSpinLock::Sum() / LWSpinLock::Calls() );
 		::OutputDebugString(buffer);
-		_stprintf_s(buffer,TEXT("LWSpinLocker max lock performance count executed was: %d\n"), LWSpinLocker::MaxDt());
+		_stprintf_s(buffer,TEXT("LWSpinLocker max lock cycles count executed was:\t%I64u\nTotal cycles spent spinning was:\t\t\t%I64u\nAverage Cycles spent spinning was:\t\t\t%I64u\n"), LWSpinLocker::MaxDt(), LWSpinLocker::Sum(), LWSpinLocker::Sum() / LWSpinLocker::Calls() );
 		::OutputDebugString(buffer);
-		_stprintf_s(buffer,TEXT("LWTrySpinLocker max trylock performance count executed was: %d\n"), LWTrySpinLocker::MaxDt());
-		::OutputDebugString(buffer);
+//		_stprintf_s(buffer,TEXT("LWTrySpinLocker max lock cycles count executed was:\t%I64u\nTotal cycles spent spinning was:\t\t%I64u\nAverage Cycles spent spinning was:%I64u\n"), LWTrySpinLocker::MaxDt(), LWTrySpinLocker::Sum(), LWTrySpinLocker::Sum() / LWTrySpinLocker::Calls() );
+//		::OutputDebugString(buffer);
 	}
 }_____fooReportIt;
 #endif

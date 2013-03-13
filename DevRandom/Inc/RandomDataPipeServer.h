@@ -11,6 +11,7 @@ struct IDevRandomServer
 	virtual ~IDevRandomServer(){}
 	virtual bool runServer()=0;
 	virtual void shutDownServer()=0;
+	virtual void CheckHandle()=0;
 };	
 
 // IWorkPtr makePipeServer(LPCTSTR lpszPipeName, IThreadPool *pPool);

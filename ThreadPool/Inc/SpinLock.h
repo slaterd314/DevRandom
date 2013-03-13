@@ -10,6 +10,53 @@
 
 #define TRACK_SPIN_COUNTS 1
 
+#ifdef TRACK_SPIN_COUNTS
+#define RECORD_MAX(a,b) a = ::std::max(a,b); \
+	++(Calls()); \
+	Sum() += b
+
+#include <intrin.h>
+  
+#pragma intrinsic(__rdtsc)
+
+
+#define DECLARE_TIME_ACQUIRE_LOCK() \
+public: \
+	static unsigned __int64 &MaxDt() { \
+		static unsigned __int64 n=0; \
+		return n; \
+	} \
+	static unsigned __int64 &Calls() { \
+		static unsigned __int64 n=0; \
+		return n; \
+	}; \
+	static unsigned __int64 &Sum() { \
+		static unsigned __int64 n=0; \
+		return n; \
+	}
+
+
+#define BEGIN_TIME_ACQUIRE_LOCK() unsigned __int64 i1 = __rdtsc()
+
+#define END_TIME_ACQUIRE_LOCK() \
+unsigned __int64 i2 = __rdtsc(); \
+unsigned __int64 dt; \
+if( i2 >= i1 ) \
+	dt = i2-i1; \
+else \
+	dt = (((unsigned __int64)(-1)) - i1) + i2; /* overflowed the unsigned __int64 */ \
+RECORD_MAX(MaxDt(),dt)
+
+
+#else
+
+#define RECORD_MAX(a,b) 
+#define DECLARE_TIME_ACQUIRE_LOCK() 
+#define BEGIN_TIME_ACQUIRE_LOCK() 
+#define END_TIME_ACQUIRE_LOCK() 
+
+#endif
+
 
 
 #ifdef _M_X64
@@ -45,15 +92,8 @@ typedef long MACHINE_INT;
 /// </summary>
 class LWSpinLock
 {
-#ifdef TRACK_SPIN_COUNTS
-public:
-	/// debugging helper to keep track of how bad the worst case spin-lock was.
-	static int &MaxIter() {
-		static int n=0;
-		return n;
-	}
+	DECLARE_TIME_ACQUIRE_LOCK();
 private:
-#endif
 	enum {
 		MAXITER=100	/// LWSpinLock will spin for no more than MAXITER iterations. At that point, it will throw an exception.
 	};				/// if it throws an exception, then that indicates you need to address whatever is causing the thread pool threads
@@ -77,15 +117,7 @@ public:
 	inline
 	void yield(const int & /*nIter*/)
 	{
-		//if( nIter < m_nCpus )
-			YieldProcessor();
-		//else //if( nIter < (m_nCpus<<1) )
-		//{
-		//	Sleep(0);
-		//	nIter = 0;
-		//}
-		//else
-		//	Sleep(1);
+		YieldProcessor();
 	}
 	bool TryLock(const MACHINE_INT &tid)
 	{
@@ -99,10 +131,7 @@ public:
 				yield(nIter);
 			}
 		}
-#ifdef TRACK_SPIN_COUNTS
-			MaxIter() = ::std::max(MaxIter(),nIter);	/// keep track of the maximum number of iterations LWSpinLocks use.
-#endif
-		return (m_n==tid);
+		RECORD_MAX(MaxDt(),static_cast<unsigned __int64>(nIter)); /// keep track of the maximum number of iterations LWSpinLocks use.
 	}
 	/// lock the resource - this method will block until either a lock is obtained, or a deadlocked exception
 	/// is thrown
@@ -116,41 +145,7 @@ public:
 				yield(nIter);
 			}
 		}
-#ifdef TRACK_SPIN_COUNTS
-		MaxIter() = ::std::max(MaxIter(),nIter);	/// keep track of the maximum number of iterations LWSpinLocks use.
-#endif
-#if 0
-#ifdef _DEBUG
-		int nIter = 0;
-#endif
-		const ALIGN MACHINE_INT test = 0;
-		const ALIGN MACHINE_INT tid = GetCurrentThreadId();
-		if( m_n != tid )	// re-entrant safe
-		{
-			for(int i=0;i<MAXITER;++i)
-			{
-				if(tryLock(tid))
-				{
-#ifdef _DEBUG
-					MaxIter() = ::std::max(MaxIter(),nIter);	/// keep track of the maximum number of iterations LWSpinLocks use.
-#endif // _DEBUG
-					break;
-				}
-				else
-				{
-					do { 
-						YieldProcessor();
-#ifdef _DEBUG
-					++nIter;
-#endif					
-					}while(m_n != test);
-				}
-			}
-			if( m_n != newVal )
-				throw ::std::runtime_error("Unexpected Spin-Wait deadlock detected");
-
-		}
-#endif // 0
+		RECORD_MAX(MaxDt(),static_cast<unsigned __int64>(nIter)); /// keep track of the maximum number of iterations LWSpinLocks use.
 	}
 	/// onlock the previously acquired lock
 	void unlock(const MACHINE_INT &tid)
@@ -188,30 +183,14 @@ private:
 class LWSpinLocker
 {
 	const ALIGN MACHINE_INT tid;
-#ifdef TRACK_SPIN_COUNTS
-public:
-	/// debugging helper to keep track of how bad the worst case spin-lock was.
-	static __int64 &MaxDt() {
-		static __int64 n=0;
-		return n;
-	}
-#endif
+	DECLARE_TIME_ACQUIRE_LOCK();
 public:
 	/// acquire the lock
 	LWSpinLocker(LWSpinLock &lock) : m_lock(lock), tid(GetCurrentThreadId())
 	{
-#ifdef TRACK_SPIN_COUNTS
-		LARGE_INTEGER li1,li2;
-		QueryPerformanceCounter(&li1);
-#endif
-
+		BEGIN_TIME_ACQUIRE_LOCK();
 		m_lock.lock(tid);
-
-#ifdef TRACK_SPIN_COUNTS
-		QueryPerformanceCounter(&li2);
-		__int64 dt = li2.QuadPart - li1.QuadPart;
-		MaxDt() = ::std::max(MaxDt(),dt);
-#endif
+		END_TIME_ACQUIRE_LOCK();
 	}
 	/// release the lock
 	~LWSpinLocker()
@@ -233,31 +212,15 @@ private:
 /// After you construct one of these, you must call locked() to see if you obtained the lock.
 class LWTrySpinLocker
 {
-#ifdef TRACK_SPIN_COUNTS
-public:
-	/// debugging helper to keep track of how bad the worst case spin-lock was.
-	static __int64 &MaxDt() {
-		static __int64 n=0;
-		return n;
-	}
-#endif
+	DECLARE_TIME_ACQUIRE_LOCK();
 public:
 	/// try to acquire a lock and store the result in m_bLocked.
 	/// this constructor won't block
 	LWTrySpinLocker(LWSpinLock &lock) : m_lock(lock), tid(GetCurrentThreadId())
 	{
-#ifdef TRACK_SPIN_COUNTS
-		LARGE_INTEGER li1,li2;
-		QueryPerformanceCounter(&li1);
-#endif
-
+		BEGIN_TIME_ACQUIRE_LOCK();
 		m_bLocked = lock.TryLock(tid);
-
-#ifdef TRACK_SPIN_COUNTS
-		QueryPerformanceCounter(&li2);
-		__int64 dt = li2.QuadPart - li1.QuadPart;
-		MaxDt() = ::std::max(MaxDt(),dt);
-#endif
+		END_TIME_ACQUIRE_LOCK();
 	}
 	/// release the lock is we successfully acquired it.
 	~LWTrySpinLocker()

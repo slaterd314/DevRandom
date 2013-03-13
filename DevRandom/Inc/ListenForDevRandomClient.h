@@ -6,6 +6,7 @@
 #include "IIoCompletion.h"
 #include "IThreadPool.h"
 #include "IWork.h"
+#include "IWait.h"
 #include "SpinLock.h"
 #include "RandomDataPipeServer.h"
 
@@ -16,7 +17,7 @@ public:
 	typedef ::std::shared_ptr<class ListenForDevRandomClient> Ptr;
 private:
 	IWork::Ptr			m_work;
-	IIoCompletion::Ptr	m_pio;
+	IWait::Ptr			m_wait;
 	HANDLE				m_hPipe;
 	MyOverlappedPtr		m_olp;
 	::std::_tstring		m_pipeName;
@@ -31,8 +32,12 @@ public:
 	void makeSelfReferent();
 	static Ptr create(LPCTSTR lpszPipeName, HANDLE hStopEvent, IThreadPool *pPool);
 	bool startServer();
+	// Work item that sets up an asynchronous ConnectNamedPipe
 	void listenForClient(PTP_CALLBACK_INSTANCE , IWork *pWork);
-	void onConnectClient(PTP_CALLBACK_INSTANCE , PVOID Overlapped, ULONG IoResult, ULONG_PTR, IIoCompletion *pIo);
+	// Wait item that gets called when a client connects to the named pipe and the event member of
+	// the overlapped structure is signaled.
+	void onConnectEventSignaled(PTP_CALLBACK_INSTANCE , TP_WAIT_RESULT , IWait *);
+	virtual void CheckHandle();
 	virtual void shutDownServer();
 };
 
