@@ -12,20 +12,27 @@
 #include "GenericTimer.h"
 #include "GenericIoCompletion.h"
 
-#ifdef _DEBUG
+#ifdef TRACK_SPIN_COUNTS
 class Max_LWSpinLock_Report
 {
 public:
 	Max_LWSpinLock_Report() {}
 	~Max_LWSpinLock_Report()
 	{
-		TRACE(TEXT("LWSpinLock max iterations executed was: %d\n"), LWSpinLock::MaxIter());
+		//TRACE(TEXT("LWSpinLock max iterations executed was: %d\n"), LWSpinLock::MaxIter());
+		TCHAR buffer[2048];
+		_stprintf_s(buffer,TEXT("LWSpinLock max iterations executed was: %d\n"), LWSpinLock::MaxIter());
+		::OutputDebugString(buffer);
+		_stprintf_s(buffer,TEXT("LWSpinLocker max lock performance count executed was: %d\n"), LWSpinLocker::MaxDt());
+		::OutputDebugString(buffer);
+		_stprintf_s(buffer,TEXT("LWTrySpinLocker max trylock performance count executed was: %d\n"), LWTrySpinLocker::MaxDt());
+		::OutputDebugString(buffer);
 	}
 }_____fooReportIt;
 #endif
 
 void
-CThreadPool::insertItem(IThreadPoolItem *pItem)
+CThreadPool::insertItem(IThreadPoolItem * pItem)
 {
 #ifdef TRACK_THREADPOOL_ITEMS
 	// protect access to the hash table
@@ -33,6 +40,8 @@ CThreadPool::insertItem(IThreadPoolItem *pItem)
 	if( !m_items )
 		m_items.reset(new ::std::hash_set<IThreadPoolItem *>);
 	m_items->insert(pItem);
+#else
+	UNREFERENCED_PARAMETER(pItem);
 #endif // TRACK_THREADPOOL_ITEMS
 }
 
@@ -44,6 +53,8 @@ CThreadPool::removeItem(IThreadPoolItem *pItem)
 	m_items->erase(pItem);
 	if( m_items->size() == 0 )
 		m_items.reset();
+#else
+	UNREFERENCED_PARAMETER(pItem);
 #endif // TRACK_THREADPOOL_ITEMS
 }
 

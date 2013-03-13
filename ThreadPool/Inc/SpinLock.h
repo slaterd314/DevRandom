@@ -2,6 +2,15 @@
 #ifndef __SPINWAIT_H__
 #define __SPINWAIT_H__
 
+#ifdef _DEBUG
+#ifndef TRACK_SPIN_COUNTS
+#define TRACK_SPIN_COUNTS 1
+#endif
+#endif
+
+#define TRACK_SPIN_COUNTS 1
+
+
 #ifdef _M_X64
 typedef __int64 MACHINE_INT;	// processor specific natural word size integer
 
@@ -35,7 +44,7 @@ typedef long MACHINE_INT;
 /// </summary>
 class LWSpinLock
 {
-#ifdef _DEBUG
+#ifdef TRACK_SPIN_COUNTS
 public:
 	/// debugging helper to keep track of how bad the worst case spin-lock was.
 	static int &MaxIter() {
@@ -64,14 +73,18 @@ public:
 		return ( (m_n == test) &&			// Only call interlockedCompareExchange if a simple comparison indicates we can get the lock
 				interlockedCompareExchange(&m_n, newVal, test) == test);
 	}
-	void yield(const int nIter)
+	inline
+	void yield(const int & /*nIter*/)
 	{
-		if( nIter < m_nCpus )
+		//if( nIter < m_nCpus )
 			YieldProcessor();
-		else if( nIter < (m_nCpus<<1) )
-			Sleep(0);
-		else
-			Sleep(1);
+		//else //if( nIter < (m_nCpus<<1) )
+		//{
+		//	Sleep(0);
+		//	nIter = 0;
+		//}
+		//else
+		//	Sleep(1);
 	}
 	bool TryLock(const MACHINE_INT &tid)
 	{
@@ -85,7 +98,7 @@ public:
 				yield(nIter);
 			}
 		}
-#ifdef _DEBUG
+#ifdef TRACK_SPIN_COUNTS
 			MaxIter() = ::std::max(MaxIter(),nIter);	/// keep track of the maximum number of iterations LWSpinLocks use.
 #endif
 		return (m_n==tid);
@@ -102,7 +115,7 @@ public:
 				yield(nIter);
 			}
 		}
-#ifdef _DEBUG
+#ifdef TRACK_SPIN_COUNTS
 		MaxIter() = ::std::max(MaxIter(),nIter);	/// keep track of the maximum number of iterations LWSpinLocks use.
 #endif
 #if 0
@@ -149,8 +162,8 @@ public:
 	}
 	static DWORD GetMinYieldIters()
 	{
-		static const DWORD dwNumProcessors = numCpus();
-		return dwNumProcessors > 4 ? dwNumProcessors : 4;
+		static const DWORD dwMinYieldIters = ((numCpus() < 8) ? 8 : numCpus());
+		return dwMinYieldIters;
 	}
 private:
 	static DWORD numCpus()
@@ -174,11 +187,30 @@ private:
 class LWSpinLocker
 {
 	const ALIGN MACHINE_INT tid;
+#ifdef TRACK_SPIN_COUNTS
+public:
+	/// debugging helper to keep track of how bad the worst case spin-lock was.
+	static __int64 &MaxDt() {
+		static __int64 n=0;
+		return n;
+	}
+#endif
 public:
 	/// acquire the lock
 	LWSpinLocker(LWSpinLock &lock) : m_lock(lock), tid(GetCurrentThreadId())
 	{
+#ifdef TRACK_SPIN_COUNTS
+		LARGE_INTEGER li1,li2;
+		QueryPerformanceCounter(&li1);
+#endif
+
 		m_lock.lock(tid);
+
+#ifdef TRACK_SPIN_COUNTS
+		QueryPerformanceCounter(&li2);
+		__int64 dt = li2.QuadPart - li1.QuadPart;
+		MaxDt() = ::std::max(MaxDt(),dt);
+#endif
 	}
 	/// release the lock
 	~LWSpinLocker()
@@ -200,12 +232,31 @@ private:
 /// After you construct one of these, you must call locked() to see if you obtained the lock.
 class LWTrySpinLocker
 {
+#ifdef TRACK_SPIN_COUNTS
+public:
+	/// debugging helper to keep track of how bad the worst case spin-lock was.
+	static __int64 &MaxDt() {
+		static __int64 n=0;
+		return n;
+	}
+#endif
 public:
 	/// try to acquire a lock and store the result in m_bLocked.
 	/// this constructor won't block
 	LWTrySpinLocker(LWSpinLock &lock) : m_lock(lock), tid(GetCurrentThreadId())
 	{
+#ifdef TRACK_SPIN_COUNTS
+		LARGE_INTEGER li1,li2;
+		QueryPerformanceCounter(&li1);
+#endif
+
 		m_bLocked = lock.TryLock(tid);
+
+#ifdef TRACK_SPIN_COUNTS
+		QueryPerformanceCounter(&li2);
+		__int64 dt = li2.QuadPart - li1.QuadPart;
+		MaxDt() = ::std::max(MaxDt(),dt);
+#endif
 	}
 	/// release the lock is we successfully acquired it.
 	~LWTrySpinLocker()

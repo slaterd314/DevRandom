@@ -10,6 +10,8 @@
 #include "IThreadPoolItemImpl.h"
 #include "SpinLock.h"
 
+#define TRACK_THREADPOOL_ITEMS 1
+
 class CThreadPool : public IThreadPool
 {
 public:
