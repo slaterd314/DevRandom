@@ -27,14 +27,14 @@ template<class C>
 inline
 IThreadPoolItemImpl<C>::IThreadPoolItemImpl() : m_pool(NULL)
 {
-	TRACE(TEXT(">>>%S::IThreadPoolItemImpl(), this=0x%x.\n"), typeid(*this).name() , this); 
+	//TRACE(TEXT(">>>%S::IThreadPoolItemImpl(), this=0x%x.\n"), typeid(*this).name() , this); 
 }
 
 template<class C>
 inline
 IThreadPoolItemImpl<C>::IThreadPoolItemImpl(class CThreadPool *p) : m_pool(p)
 {
-	TRACE(TEXT(">>>%S::IThreadPoolItemImpl(p), this=0x%x.\n"), typeid(*this).name() , this); 
+	//TRACE(TEXT(">>>%S::IThreadPoolItemImpl(p), this=0x%x.\n"), typeid(*this).name() , this); 
 	p->insertItem(this);
 }
 
@@ -42,7 +42,7 @@ template<class C>
 inline
 IThreadPoolItemImpl<C>::~IThreadPoolItemImpl()
 {
-	TRACE(TEXT("<<<%S::~IThreadPoolItemImpl(), this=0x%x.\n"), typeid(*this).name() , this); 
+	//TRACE(TEXT("<<<%S::~IThreadPoolItemImpl(), this=0x%x.\n"), typeid(*this).name() , this); 
 	static_cast<CThreadPool *>(pool())->removeItem(this);
 }
 

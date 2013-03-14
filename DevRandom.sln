@@ -8,6 +8,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DevRandom", "DevRandom\DevR
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ThreadPool", "ThreadPool\ThreadPool.vcxproj", "{7F5F6F54-E687-451A-8601-C6C29033A40C}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "QuickSort", "QuickSort\QuickSort.vcxproj", "{08D23C34-36B9-4565-9B3C-3AD2E1AAE30F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -32,6 +34,14 @@ Global
 		{7F5F6F54-E687-451A-8601-C6C29033A40C}.Release|Win32.Build.0 = Release|Win32
 		{7F5F6F54-E687-451A-8601-C6C29033A40C}.Release|x64.ActiveCfg = Release|x64
 		{7F5F6F54-E687-451A-8601-C6C29033A40C}.Release|x64.Build.0 = Release|x64
+		{08D23C34-36B9-4565-9B3C-3AD2E1AAE30F}.Debug|Win32.ActiveCfg = Debug|Win32
+		{08D23C34-36B9-4565-9B3C-3AD2E1AAE30F}.Debug|Win32.Build.0 = Debug|Win32
+		{08D23C34-36B9-4565-9B3C-3AD2E1AAE30F}.Debug|x64.ActiveCfg = Debug|x64
+		{08D23C34-36B9-4565-9B3C-3AD2E1AAE30F}.Debug|x64.Build.0 = Debug|x64
+		{08D23C34-36B9-4565-9B3C-3AD2E1AAE30F}.Release|Win32.ActiveCfg = Release|Win32
+		{08D23C34-36B9-4565-9B3C-3AD2E1AAE30F}.Release|Win32.Build.0 = Release|Win32
+		{08D23C34-36B9-4565-9B3C-3AD2E1AAE30F}.Release|x64.ActiveCfg = Release|x64
+		{08D23C34-36B9-4565-9B3C-3AD2E1AAE30F}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

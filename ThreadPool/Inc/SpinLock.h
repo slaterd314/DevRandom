@@ -8,7 +8,8 @@
 #endif
 #endif
 
-#define TRACK_SPIN_COUNTS 1
+// #define TRACK_SPIN_COUNTS 1
+#undef TRACK_SPIN_COUNTS
 
 #ifdef TRACK_SPIN_COUNTS
 #define RECORD_MAX(a,b) a = ::std::max(a,b); \
