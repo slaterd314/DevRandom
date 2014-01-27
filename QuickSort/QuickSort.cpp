@@ -170,6 +170,11 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	unsigned __int64 i2 = __rdtsc();
 
+	_tprintf(TEXT("Hit a key to Msort\n"));
+
+	_getws_s(buf);
+
+
 	sortM(arr2.begin(),--(arr2.end()));
 
 	unsigned __int64 i3 = __rdtsc();
