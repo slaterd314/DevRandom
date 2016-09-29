@@ -86,9 +86,9 @@ ListenForDevRandomClient::CheckHandle()
 		DWORD dwCurInstance=0;
 		DWORD dwMaxCollectionCount = 0;
 		DWORD dwCollectionDataTimeout = 0;
-		TCHAR UserName[1024];
+		// TCHAR UserName[1024];
 
-		BOOL bRet = GetNamedPipeHandleState(m_hPipe,&dwState, &dwCurInstance, &dwMaxCollectionCount, &dwCollectionDataTimeout, NULL, 0);
+		BOOL bRet = GetNamedPipeHandleState(m_hPipe,&dwState, &dwCurInstance, NULL /* &dwMaxCollectionCount */ , NULL /* &dwCollectionDataTimeout */, NULL, 0);
 		if( !bRet )
 		{
 			_ftprintf_s(stderr,TEXT("GetNamedPipeHandleState failed, GLE=%d.\n"), GetLastError()); 

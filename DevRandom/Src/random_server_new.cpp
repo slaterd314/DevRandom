@@ -56,10 +56,13 @@ static void WaitForCallbacks(IDevRandomServer::Ptr &pServer)
 	{
 		_tprintf_s(TEXT("Enter \"quit\" to exit\n> "));
 		LPCTSTR lpsz = _getws_s(buf);
-		if( 0 == _tcsicmp(lpsz, TEXT("quit")) )
-			break;
-		else if( 0 == _tcsicmp(lpsz, TEXT("check")) )
-			pServer->CheckHandle();
+        if (lpsz)
+        {
+            if (0 == _tcsicmp(lpsz, TEXT("quit")))
+                break;
+            else if (0 == _tcsicmp(lpsz, TEXT("check")))
+                pServer->CheckHandle();
+        }
 	}
 }
 

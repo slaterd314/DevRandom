@@ -17,5 +17,6 @@ x64\*
 _xlk
 *.ipch
 *.sdf
-
+.vs\*
+*.VC.db
 ec.cmd

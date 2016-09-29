@@ -15,6 +15,7 @@
 void TRACE(LPCTSTR lpszFormat, ...)
 {
 	TCHAR buffer[2048];
+    buffer[2047] = '\0';
 	va_list arg;
 	va_start(arg, lpszFormat);
 	_vsntprintf_s(buffer,_TRUNCATE, lpszFormat, arg);

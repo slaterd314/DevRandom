@@ -4,7 +4,7 @@
 #define new DEBUG_NEW
 #endif
 
-#include <hash_set>
+#include <unordered_set>
 #include <algorithm>
 #include "CThreadPool.h"
 #include "GenericWork.h"
@@ -40,7 +40,7 @@ CThreadPool::insertItem(IThreadPoolItem * pItem)
 	// protect access to the hash table
 	LWSpinLocker lock(m_lock);
 	if( !m_items )
-		m_items.reset(new ::std::hash_set<IThreadPoolItem *>);
+		m_items.reset(new ::std::unordered_set<IThreadPoolItem *>);
 	m_items->insert(pItem);
 #else
 	UNREFERENCED_PARAMETER(pItem);

@@ -1,6 +1,8 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25123.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DevRandom", "DevRandom\DevRandom.vcxproj", "{4B9336D2-CE4C-42E6-8298-6E490E71F482}"
 	ProjectSection(ProjectDependencies) = postProject
 		{7F5F6F54-E687-451A-8601-C6C29033A40C} = {7F5F6F54-E687-451A-8601-C6C29033A40C}
@@ -9,6 +11,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ThreadPool", "ThreadPool\ThreadPool.vcxproj", "{7F5F6F54-E687-451A-8601-C6C29033A40C}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "QuickSort", "QuickSort\QuickSort.vcxproj", "{08D23C34-36B9-4565-9B3C-3AD2E1AAE30F}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7F5F6F54-E687-451A-8601-C6C29033A40C} = {7F5F6F54-E687-451A-8601-C6C29033A40C}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

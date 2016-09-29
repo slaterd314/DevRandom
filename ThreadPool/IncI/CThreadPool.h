@@ -68,7 +68,7 @@ private:
 	TP_CALLBACK_ENVIRON m_env;
 	unsigned __int32	m_bEnabled;
 #ifdef TRACK_THREADPOOL_ITEMS
-	::std::unique_ptr<::std::hash_set<IThreadPoolItem *> > m_items;
+	::std::unique_ptr<::std::unordered_set<IThreadPoolItem *> > m_items;
 	LWSpinLock		m_lock;
 #endif // TRACK_THREADPOOL_ITEMS
 };

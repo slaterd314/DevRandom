@@ -5,11 +5,14 @@
 
 #pragma once
 
-#include "targetver.h"
-
-
 #define _WIN32_WINNT _WIN32_WINNT_WIN7
 #define WIN32_LEAN_AND_MEAN
+
+#include "targetver.h"
+
+#define _CRT_RAND_S
+#include <stdlib.h>
+
 #include <windows.h>
 
 #include <crtdbg.h>
@@ -19,9 +22,6 @@
 #define new DEBUG_NEW
 
 #endif
-
-#define _CRT_RAND_S
-#include <stdlib.h>
 
 
 #include <stdio.h>

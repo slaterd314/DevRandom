@@ -51,9 +51,9 @@ void TRACE(LPCTSTR lpszFormat, ...);
 #include <cstring>
 #include <cwchar>
 
-#include <hash_map>
+#include <unordered_map>
 #include <functional>
-#include <hash_set>
+#include <unordered_set>
 #include <algorithm>
 #include <string>
 
