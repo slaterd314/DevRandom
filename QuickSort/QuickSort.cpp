@@ -129,14 +129,14 @@ template< typename BidirectionalIterator >
 		}
     }
 
-static
-int 
-mycmp(void *a, void *b)
-{
-	return (*(int*)a)-(*(int*)b); 
-}
+//static
+//int 
+//mycmp(void *a, void *b)
+//{
+//	return (*(int*)a)-(*(int*)b); 
+//}
 
-int _tmain(int argc, _TCHAR* argv[])
+int _tmain(int /* argc */, _TCHAR* /* argv[] */ )
 {
 	// int *arr = new int[nArrSize];
 	
@@ -150,9 +150,9 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	::std::vector<int> arr2 = arr;
 
-
-	FILE *fp = fopen("e:\\Before.txt","w");
-	if( fp )
+    FILE *fp = NULL;
+	auto err = fopen_s(&fp,"e:\\Before.txt","w");
+	if( !err && fp )
 	{
 		for( int i=0; i<nArrSize; ++i )
 			fprintf(fp,"%d\n",arr[i]);
@@ -180,16 +180,18 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	unsigned __int64 i3 = __rdtsc();
 
-	fp = fopen("e:\\After.txt","w");
-	if( fp )
+    fp = NULL;
+	err = fopen_s(&fp, "e:\\After.txt","w");
+	if( !err && fp )
 	{
 		for( int i=0; i<nArrSize; ++i )
 			fprintf(fp,"%d\n",arr[i]);
 		fclose(fp);
 	}
 
-	fp = fopen("e:\\After2.txt","w");
-	if( fp )
+    fp = NULL;
+	err = fopen_s(&fp,"e:\\After2.txt","w");
+	if( !err && fp )
 	{
 		for( int i=0; i<nArrSize; ++i )
 			fprintf(fp,"%d\n",arr2[i]);
